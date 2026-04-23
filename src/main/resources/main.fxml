@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.web.WebView?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.deliveryroute.ui.MainController">
+
+    <top>
+        <HBox spacing="10" alignment="CENTER_LEFT" styleClass="card">
+            <padding>
+                <Insets top="10" right="16" bottom="10" left="16" />
+            </padding>
+            <Label text="Customer Console" style="-fx-font-size: 16; -fx-font-weight: bold;" />
+            <Pane HBox.hgrow="ALWAYS" />
+            <Label fx:id="bellLabel" text="🔔" styleClass="bell-icon" onMouseClicked="#openNotifications" />
+            <Label fx:id="unreadBadgeLabel" text="0" styleClass="badge-unread" />
+        </HBox>
+    </top>
+
+    <!-- Right side: Map or home placeholder -->
+    <center>
+        <StackPane style="-fx-background-color: #F4F6F8;">
+            <WebView fx:id="mapWebView" visible="false" managed="false" />
+            <VBox fx:id="homeCenterPane" spacing="10" alignment="CENTER">
+                <Label text="Delivery Route Optimizer" style="-fx-font-size: 28; -fx-font-weight: bold; -fx-text-fill: #FF6B00;" />
+                <Label text="Login or Sign Up to continue" style="-fx-font-size: 14; -fx-text-fill: #555;" />
+            </VBox>
+        </StackPane>
+    </center>
+
+    <!-- Left side: Home / App Control Panels -->
+    <left>
+        <StackPane minWidth="320" maxWidth="320" style="-fx-background-color: #FFFFFF; -fx-border-width: 0 1 0 0; -fx-border-color: #E0E0E0;">
+            <VBox fx:id="homePanel" spacing="12" alignment="TOP_CENTER">
+                <padding>
+                    <Insets top="24" right="16" bottom="16" left="16" />
+                </padding>
+                <Label text="Welcome" style="-fx-font-size: 24; -fx-font-weight: bold; -fx-text-fill: #FF6B00;" />
+                <Label text="Select how you want to continue" style="-fx-font-size: 12; -fx-text-fill: #666;" />
+                <Button fx:id="loginButton" text="Login" prefWidth="Infinity"
+                        style="-fx-font-size: 14; -fx-font-weight: bold; -fx-padding: 8; -fx-background-color: #FF6B00; -fx-text-fill: white;" />
+                <Button fx:id="signupButton" text="Sign Up" prefWidth="Infinity"
+                        style="-fx-font-size: 14; -fx-font-weight: bold; -fx-padding: 8; -fx-background-color: #37474F; -fx-text-fill: white;" />
+                <Separator />
+                <Label fx:id="homeStatusLabel" text="Login to open dashboard" style="-fx-font-size: 11; -fx-text-fill: #666;" />
+            </VBox>
+
+            <VBox fx:id="appPanel" spacing="12" visible="false" managed="false">
+                <padding>
+                    <Insets top="16" right="16" bottom="16" left="16" />
+                </padding>
+                <Label text="Route Optimizer" style="-fx-font-size: 18; -fx-font-weight: bold; -fx-text-fill: #FF6B00;" />
+                <Label fx:id="loggedInUserLabel" text="Not logged in" style="-fx-font-size: 11; -fx-text-fill: #444;" />
+
+                <Label text="Source City" style="-fx-font-size: 12; -fx-font-weight: bold;" />
+                <ComboBox fx:id="sourceCombo" prefWidth="Infinity" />
+
+                <Label text="Destination City" style="-fx-font-size: 12; -fx-font-weight: bold;" />
+                <ComboBox fx:id="destinationCombo" prefWidth="Infinity" />
+
+                <Label text="Vehicle Type" style="-fx-font-size: 12; -fx-font-weight: bold; -fx-margin-top: 12;" />
+                <VBox spacing="8" style="-fx-border-radius: 4;">
+                    <RadioButton fx:id="bikeRadio" text="Bike (INR 2.0/km)" />
+                    <RadioButton fx:id="vanRadio" text="Van (INR 5.5/km)" />
+                    <RadioButton fx:id="truckRadio" text="Truck (INR 8.5/km)" />
+                </VBox>
+
+                <Label text="Cost Strategy" style="-fx-font-size: 12; -fx-font-weight: bold; -fx-margin-top: 12;" />
+                <ComboBox fx:id="strategyCombo" prefWidth="Infinity" />
+
+                <Button fx:id="findRouteButton" text="Find Route" prefWidth="Infinity"
+                        style="-fx-font-size: 14; -fx-font-weight: bold; -fx-padding: 8; -fx-background-color: #FF6B00; -fx-text-fill: white; -fx-cursor: hand;" />
+
+                <Label fx:id="statusLabel" text="Loading..." style="-fx-font-size: 11; -fx-text-fill: #666;" />
+
+                <Separator />
+                <Label text="Cost Breakdown" style="-fx-font-size: 12; -fx-font-weight: bold; -fx-text-fill: #FF6B00;" />
+                <TextArea fx:id="costSummaryText" prefRowCount="8" wrapText="true" editable="false"
+                          style="-fx-control-inner-background: #FFF5E6; -fx-text-fill: #333;" />
+
+                <HBox spacing="8">
+                    <Button fx:id="saveRouteButton" text="Save Route" prefWidth="Infinity"
+                            style="-fx-font-size: 12; -fx-padding: 6; -fx-background-color: #4CAF50; -fx-text-fill: white;" />
+                    <Button fx:id="viewHistoryButton" text="History" prefWidth="Infinity"
+                            style="-fx-font-size: 12; -fx-padding: 6; -fx-background-color: #2196F3; -fx-text-fill: white;" />
+                </HBox>
+
+                <Separator />
+                <Label text="Orders" style="-fx-font-size: 12; -fx-font-weight: bold; -fx-text-fill: #FF6B00;" />
+                <HBox spacing="8">
+                    <Button fx:id="placeOrderButton" text="Place Order" prefWidth="Infinity"
+                            style="-fx-font-size: 12; -fx-padding: 6; -fx-background-color: #F57C00; -fx-text-fill: white;" />
+                    <Button fx:id="viewOrdersButton" text="View Orders" prefWidth="Infinity"
+                            style="-fx-font-size: 12; -fx-padding: 6; -fx-background-color: #607D8B; -fx-text-fill: white;" />
+                </HBox>
+                <HBox spacing="8">
+                    <Button fx:id="acceptOrderButton" text="Accept Next" prefWidth="Infinity"
+                            style="-fx-font-size: 12; -fx-padding: 6; -fx-background-color: #00897B; -fx-text-fill: white;" />
+                    <Button fx:id="completeOrderButton" text="Complete" prefWidth="Infinity"
+                            style="-fx-font-size: 12; -fx-padding: 6; -fx-background-color: #2E7D32; -fx-text-fill: white;" />
+                </HBox>
+                <Button fx:id="simulateMovementButton" text="Simulate Movement" prefWidth="Infinity"
+                    style="-fx-font-size: 12; -fx-padding: 6; -fx-background-color: #7C3AED; -fx-text-fill: white;" />
+                <Label fx:id="trackingStatusLabel" text="Tracking inactive" style="-fx-font-size: 11; -fx-text-fill: #4B5563;" wrapText="true" />
+                <TextArea fx:id="orderSummaryText" prefRowCount="6" wrapText="true" editable="false"
+                          style="-fx-control-inner-background: #EFF6FA; -fx-text-fill: #333;" />
+            </VBox>
+        </StackPane>
+
+    </left>
+
+</BorderPane>

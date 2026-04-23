@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.PasswordField?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.control.ToggleGroup?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<StackPane xmlns="http://javafx.com/javafx"
+           xmlns:fx="http://javafx.com/fxml"
+           fx:controller="com.deliveryroute.ui.LoginController"
+           styleClass="root">
+
+    <VBox spacing="14" maxWidth="400" prefWidth="400" styleClass="card">
+        <padding>
+            <Insets top="24" right="24" bottom="24" left="24"/>
+        </padding>
+
+        <Label text="Delivery Route Cost Optimizer" style="-fx-font-size: 22; -fx-font-weight: bold; -fx-text-fill: #1A1A18;"/>
+        <Label text="Sign in to continue" style="-fx-text-fill: #66665F;"/>
+
+        <HBox spacing="8">
+            <ToggleButton fx:id="customerRoleButton" text="Customer" styleClass="pill-toggle" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+            <ToggleButton fx:id="adminRoleButton" text="Admin" styleClass="pill-toggle" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+            <ToggleButton fx:id="deliveryRoleButton" text="Delivery" styleClass="pill-toggle" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+        </HBox>
+
+        <TextField fx:id="usernameField" promptText="Username"/>
+        <PasswordField fx:id="passwordField" promptText="Password"/>
+
+        <Button fx:id="signInButton" text="Sign In" onAction="#onSignIn" maxWidth="Infinity" styleClass="btn-primary"/>
+        <Label fx:id="errorLabel" text="Invalid credentials" visible="false" managed="false" style="-fx-text-fill: #B91C1C;"/>
+
+        <Label text="Create account" onMouseClicked="#onCreateAccount" style="-fx-text-fill: #E5581E; -fx-cursor: hand; -fx-underline: true;"/>
+
+        <ToggleGroup fx:id="roleToggleGroup"/>
+    </VBox>
+</StackPane>
