@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Delivery Route Cost Optimizer - Admin Dashboard</title>
+  <link rel="stylesheet" href="styles/theme-web.css" />
+</head>
+<body class="page" id="adminScreen">
+  <div class="two-col-shell root-shell">
+    <aside class="admin-sidebar">
+      <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #f8fafc;">Admin Console</h1>
+      <p id="adminUserLabel" style="margin: 0 0 8px 0; color: #cbd5e1; font-size: 12px;">Admin</p>
+
+      <button id="dashboardNavButton" class="admin-nav-btn active" type="button">Dashboard</button>
+      <button id="ordersNavButton" class="admin-nav-btn" type="button">Orders Lifecycle</button>
+      <button id="crudNavButton" class="admin-nav-btn" type="button">Order CRUD</button>
+      <button id="usersNavButton" class="admin-nav-btn" type="button">Riders</button>
+    </aside>
+
+    <main id="contentStack" class="admin-content">
+      <section id="dashboardPane" class="panel">
+        <h2 style="margin: 0; font-size: 24px; font-weight: 700; color: #0f172a;">Dashboard</h2>
+        <div class="metrics-grid">
+          <article class="metric-card">
+            <span class="metric-title">Orders Created</span>
+            <strong id="totalOrdersTodayLabel" class="metric-value">0</strong>
+          </article>
+          <article class="metric-card">
+            <span class="metric-title">Orders Accepted</span>
+            <strong id="revenueTodayLabel" class="metric-value">INR 0.00</strong>
+          </article>
+          <article class="metric-card">
+            <span class="metric-title">Orders On The Way</span>
+            <strong id="activeDeliveriesLabel" class="metric-value">0</strong>
+          </article>
+          <article class="metric-card">
+            <span class="metric-title">Orders Delivered</span>
+            <strong id="avgRatingLabel" class="metric-value">0.00</strong>
+          </article>
+        </div>
+      </section>
+
+      <section id="ordersPane" class="panel hidden">
+        <h2 style="margin: 0; font-size: 24px; font-weight: 700; color: #0f172a;">Orders Lifecycle</h2>
+        <div class="row" style="flex-wrap: wrap;">
+          <button id="ordersCreatedTab" class="btn btn-primary" type="button">Orders Created</button>
+          <button id="ordersAcceptedTab" class="btn btn-blue" type="button">Orders Accepted</button>
+          <button id="ordersOnWayTab" class="btn btn-orange" type="button">Order On The Way</button>
+          <button id="ordersDeliveredTab" class="btn btn-green" type="button">Order Delivered</button>
+        </div>
+
+        <div class="table-wrap" aria-label="Orders Table Wrapper">
+          <table id="ordersTable" aria-label="Orders Table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th>Route</th>
+                <th>Specs</th>
+                <th>Vehicle</th>
+                <th>Status</th>
+                <th>Rider</th>
+                <th>Slot</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="crudPane" class="panel hidden">
+        <h2 style="margin: 0; font-size: 24px; font-weight: 700; color: #0f172a;">Manual Order CRUD</h2>
+        <div class="panel-surface">
+          <div class="row" style="flex-wrap: wrap;">
+            <input id="adminOrderId" type="number" placeholder="Order ID (for update/delete)" />
+            <input id="adminCustomerEmail" type="email" placeholder="Customer email" />
+            <select id="adminPickupCity"></select>
+            <select id="adminDropCity"></select>
+            <select id="adminVehicleType">
+              <option>Bike</option>
+              <option>Van</option>
+              <option>Truck</option>
+            </select>
+            <input id="adminWeightKg" type="number" step="0.1" placeholder="Weight KG" />
+            <select id="adminStatus">
+              <option>CREATED</option>
+              <option>ACCEPTED</option>
+              <option>ON_THE_WAY</option>
+              <option>DELIVERED</option>
+              <option>CANCELLED</option>
+            </select>
+            <input id="adminPickupSlot" type="text" placeholder="Slot (10:00 - 12:00)" />
+          </div>
+          <div class="row" style="margin-top: 8px;">
+            <button id="adminCreateOrderBtn" class="btn btn-green" type="button">Create</button>
+            <button id="adminUpdateOrderBtn" class="btn btn-blue" type="button">Update</button>
+            <button id="adminDeleteOrderBtn" class="btn btn-orange" type="button">Delete</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="usersPane" class="panel hidden">
+        <h2 style="margin: 0; font-size: 24px; font-weight: 700; color: #0f172a;">Manual Rider Assignment</h2>
+        <div class="table-wrap" aria-label="Users Table Wrapper">
+          <table id="usersTable">
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Customer</th>
+                <th>Status</th>
+                <th>Assign Rider</th>
+                <th>Save</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="scripts/app.js"></script>
+</body>
+</html>

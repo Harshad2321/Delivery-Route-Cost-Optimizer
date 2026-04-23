@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Delivery Route Cost Optimizer - Admin Login</title>
+  <link rel="stylesheet" href="../../styles/theme-web.css" />
+</head>
+<body class="page" id="adminLoginScreen">
+  <main class="login-layout root-shell">
+    <section class="login-card card" aria-label="Admin Login Form">
+      <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #1a1a18;">Admin Login</h1>
+      <p style="margin: 0; color: #66665f;">Use one of the pre-set admin accounts</p>
+
+      <input id="adminEmailField" type="email" placeholder="Admin Email" autocomplete="email" />
+      <input id="adminPasswordField" type="password" placeholder="Password" autocomplete="current-password" />
+      <label style="font-size: 12px; color: #475569; display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" data-toggle-password="adminPasswordField" style="width: auto;" />
+        Show password
+      </label>
+
+      <button id="adminSignInButton" class="btn btn-primary" type="button">Sign In as Admin</button>
+      <p id="adminErrorLabel" class="error-text hidden" style="margin: 0;">Invalid admin credentials</p>
+
+      <a href="../" style="color:#334155; font-size:13px;">Back to user login</a>
+    </section>
+  </main>
+
+  <script src="../../scripts/app.js"></script>
+</body>
+</html>

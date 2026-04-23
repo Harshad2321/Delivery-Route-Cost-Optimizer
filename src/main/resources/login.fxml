@@ -30,7 +30,7 @@
             <ToggleButton fx:id="deliveryRoleButton" text="Delivery" styleClass="pill-toggle" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
         </HBox>
 
-        <TextField fx:id="usernameField" promptText="Username"/>
+        <TextField fx:id="emailField" promptText="Email ID"/>
         <PasswordField fx:id="passwordField" promptText="Password"/>
 
         <Button fx:id="signInButton" text="Sign In" onAction="#onSignIn" maxWidth="Infinity" styleClass="btn-primary"/>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Delivery Route Cost Optimizer - Customer Console</title>
+  <link rel="stylesheet" href="styles/theme-web.css" />
+</head>
+<body class="page" id="mainScreen">
+  <div class="main-grid root-shell">
+    <header class="main-topbar card">
+      <strong style="font-size: 16px;">Customer Console</strong>
+      <div style="margin-left: auto;"></div>
+      <span id="bellLabel" class="bell-icon" title="Notifications" data-action="openNotifications">🔔</span>
+      <span id="unreadBadgeLabel" class="badge-unread">0</span>
+    </header>
+
+    <aside class="main-left">
+      <section id="appPanel" class="section-stack" aria-label="Customer Application Panel">
+        <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: #ff6b00;">Book Pickup</h2>
+        <p id="loggedInUserLabel" style="margin: 0; font-size: 11px; color: #444;">Logged in customer</p>
+
+        <label for="pickupCity" style="font-size: 12px; font-weight: 700;">Pickup City</label>
+        <select id="pickupCity"></select>
+
+        <label for="dropCity" style="font-size: 12px; font-weight: 700;">Drop City</label>
+        <select id="dropCity"></select>
+
+        <label for="orderType" style="font-size: 12px; font-weight: 700;">Order Type</label>
+        <select id="orderType">
+          <option>Documents</option>
+          <option>Electronics</option>
+          <option>Fragile</option>
+          <option>Furniture</option>
+          <option>Groceries</option>
+        </select>
+
+        <label for="weightKg" style="font-size: 12px; font-weight: 700;">Weight (KG)</label>
+        <input id="weightKg" type="number" min="0.1" step="0.1" value="1" />
+
+        <label for="dimensionUnit" style="font-size: 12px; font-weight: 700;">Dimension Unit</label>
+        <select id="dimensionUnit">
+          <option value="cm">CM</option>
+          <option value="ft">Feet</option>
+        </select>
+
+        <label style="font-size: 12px; font-weight: 700;">Dimensions (L x W x H)</label>
+        <div class="row">
+          <input id="lengthValue" type="number" min="1" placeholder="L" />
+          <input id="widthValue" type="number" min="1" placeholder="W" />
+          <input id="heightValue" type="number" min="1" placeholder="H" />
+        </div>
+
+        <label for="vehicleType" style="font-size: 12px; font-weight: 700;">Vehicle Preference</label>
+        <select id="vehicleType">
+          <option>Bike</option>
+          <option>Van</option>
+          <option>Truck</option>
+        </select>
+
+        <label for="pickupDate" style="font-size: 12px; font-weight: 700;">Pickup Date</label>
+        <input id="pickupDate" type="date" />
+
+        <label for="pickupSlot" style="font-size: 12px; font-weight: 700;">Pickup Slot</label>
+        <select id="pickupSlot">
+          <option>08:00 - 10:00</option>
+          <option>10:00 - 12:00</option>
+          <option>12:00 - 14:00</option>
+          <option>14:00 - 16:00</option>
+          <option>16:00 - 18:00</option>
+        </select>
+
+        <div class="row">
+          <button id="estimateCostButton" class="btn btn-blue" type="button">Estimate Cost</button>
+          <button id="placeOrderButton" class="btn btn-primary" type="button">Book Pickup</button>
+        </div>
+
+        <p id="statusLabel" style="margin: 0; font-size: 12px; color: #0f172a;">Fill details and estimate cost.</p>
+        <textarea id="costSummaryText" rows="5" readonly style="background: #fff5e6; color: #333;"></textarea>
+
+        <div class="separator"></div>
+        <label style="font-size: 12px; font-weight: 700; color: #ff6b00;">My Pickups</label>
+        <div class="table-wrap">
+          <table id="customerOrdersTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Route</th>
+                <th>Order Type</th>
+                <th>Status</th>
+                <th>Slot</th>
+                <th>Cost</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </aside>
+
+    <section class="main-center" aria-label="Map and Home Center">
+      <iframe id="mapWebView" class="map-panel" title="Map View" src="map.html"></iframe>
+    </section>
+  </div>
+
+  <section id="notificationsModal" class="modal-overlay hidden" aria-label="Notifications Dialog">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Notifications</h3>
+        <button class="btn" type="button" data-close-modal="notificationsModal">Close</button>
+      </div>
+      <ul id="notificationsListView" style="margin: 0; padding-left: 18px;"></ul>
+      <div class="modal-actions">
+        <button id="markAllReadButton" class="btn btn-primary" type="button">Mark all read</button>
+      </div>
+    </div>
+  </section>
+
+  <script src="scripts/app.js"></script>
+</body>
+</html>

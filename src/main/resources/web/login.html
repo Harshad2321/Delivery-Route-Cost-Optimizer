@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Delivery Route Cost Optimizer - Login</title>
+  <link rel="stylesheet" href="styles/theme-web.css" />
+</head>
+<body class="page" id="loginScreen">
+  <main class="login-layout root-shell">
+    <section class="login-card card" aria-label="Login Form">
+      <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #1a1a18;">Delivery Route Cost Optimizer</h1>
+      <p style="margin: 0; color: #66665f;">Sign in to continue</p>
+
+      <div id="roleToggleGroup" class="login-roles" role="group" aria-label="Role Selection">
+        <button id="customerRoleButton" class="pill-toggle" type="button" aria-pressed="false">Customer</button>
+        <button id="deliveryRoleButton" class="pill-toggle" type="button" aria-pressed="false">Delivery Partner</button>
+      </div>
+
+      <input id="emailField" type="email" placeholder="Email ID" autocomplete="email" />
+      <input id="passwordField" type="password" placeholder="Password" autocomplete="current-password" />
+      <label style="font-size: 12px; color: #475569; display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" data-toggle-password="passwordField" style="width: auto;" />
+        Show password
+      </label>
+
+      <button id="signInButton" class="btn btn-primary" type="button" data-action="onSignIn">Sign In</button>
+      <p id="errorLabel" class="error-text hidden" style="margin: 0;">Invalid credentials</p>
+
+      <span id="createAccountLink" class="link-action" data-action="onCreateAccount">Create account</span>
+      <a href="login/admin/" style="color:#334155; font-size:13px;">Admin login</a>
+    </section>
+  </main>
+
+  <section id="createAccountModal" class="modal-overlay hidden" aria-label="Create Account Dialog">
+    <div class="modal-card" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Create account</h3>
+        <button class="btn" type="button" data-close-modal="createAccountModal">Close</button>
+      </div>
+      <div class="form-grid">
+        <label for="newNameField">Name</label>
+        <input id="newNameField" type="text" placeholder="Full name" />
+        <label for="newRoleField">Account Type</label>
+        <select id="newRoleField">
+          <option value="CUSTOMER">Customer</option>
+          <option value="DELIVERY_PARTNER">Delivery Partner</option>
+        </select>
+        <label for="newEmailField">Email</label>
+        <input id="newEmailField" type="email" placeholder="you@example.com" />
+        <label for="newPasswordField">Password</label>
+        <input id="newPasswordField" type="password" placeholder="At least 4 characters" />
+        <label style="font-size: 12px; color: #475569; display: flex; align-items: center; gap: 8px; grid-column: 2 / 3;">
+          <input type="checkbox" data-toggle-password="newPasswordField" style="width: auto;" />
+          Show password
+        </label>
+        <label for="newConfirmPasswordField">Confirm</label>
+        <input id="newConfirmPasswordField" type="password" placeholder="Confirm password" />
+        <label style="font-size: 12px; color: #475569; display: flex; align-items: center; gap: 8px; grid-column: 2 / 3;">
+          <input type="checkbox" data-toggle-password="newConfirmPasswordField" style="width: auto;" />
+          Show confirm password
+        </label>
+      </div>
+      <p id="createAccountError" class="error-text hidden" style="margin:0;"></p>
+      <div class="modal-actions">
+        <button class="btn" type="button" data-close-modal="createAccountModal">Cancel</button>
+        <button id="createAccountSubmitButton" class="btn btn-primary" type="button">Create Account</button>
+      </div>
+    </div>
+  </section>
+
+  <script src="scripts/app.js"></script>
+</body>
+</html>

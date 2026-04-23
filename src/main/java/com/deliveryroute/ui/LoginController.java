@@ -24,7 +24,7 @@ public class LoginController {
     @FXML private ToggleButton customerRoleButton;
     @FXML private ToggleButton adminRoleButton;
     @FXML private ToggleButton deliveryRoleButton;
-    @FXML private TextField usernameField;
+    @FXML private TextField emailField;
     @FXML private PasswordField passwordField;
     @FXML private Label errorLabel;
 
@@ -42,22 +42,27 @@ public class LoginController {
 
     @FXML
     private void onSignIn() {
-        String username = usernameField.getText() == null ? "" : usernameField.getText().trim();
+        String email = emailField.getText() == null ? "" : emailField.getText().trim().toLowerCase();
         String password = passwordField.getText() == null ? "" : passwordField.getText().trim();
 
-        if (username.isBlank() || password.isBlank()) {
-            showError("Username and password are required");
+        if (email.isBlank() || password.isBlank()) {
+            showError("Email and password are required");
             return;
         }
 
-        String role = getSelectedRole();
-        if (!userRepository.authenticate(username, password, role)) {
+        if (!isValidEmail(email)) {
+            showError("Enter a valid email address");
+            return;
+        }
+
+        String accountType = getSelectedAccountType();
+        if (!userRepository.authenticate(email, password, accountType)) {
             showError("Invalid credentials for selected role");
             return;
         }
 
         try {
-            routeToRoleDashboard(role, username);
+            routeToRoleDashboard(accountType, email);
         } catch (IOException e) {
             showAlert("Unable to load dashboard: " + e.getMessage());
         }
@@ -65,27 +70,27 @@ public class LoginController {
 
     @FXML
     private void onCreateAccount() {
-        showAlert("Use existing seeded users or sign up from customer screen in main module.");
+        showAlert("Create customer and delivery partner accounts from the customer sign-up screen. Admin accounts are preset only.");
     }
 
-    private String getSelectedRole() {
+    private String getSelectedAccountType() {
         if (adminRoleButton.isSelected()) {
             return "ADMIN";
         }
         if (deliveryRoleButton.isSelected()) {
-            return "DELIVERY";
+            return "DELIVERY_PARTNER";
         }
         return "CUSTOMER";
     }
 
-    private void routeToRoleDashboard(String role, String username) throws IOException {
-        Stage stage = (Stage) usernameField.getScene().getWindow();
+    private void routeToRoleDashboard(String accountType, String email) throws IOException {
+        Stage stage = (Stage) emailField.getScene().getWindow();
 
-        if ("ADMIN".equals(role)) {
+        if ("ADMIN".equals(accountType)) {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/admin.fxml"));
             Parent root = loader.load();
             AdminController controller = loader.getController();
-            controller.setAdminUser(username);
+            controller.setAdminUser(email);
             Scene scene = new Scene(root, 1400, 860);
             scene.getStylesheets().add(getClass().getResource("/styles/theme.css").toExternalForm());
             stage.setScene(scene);
@@ -93,11 +98,11 @@ public class LoginController {
             return;
         }
 
-        if ("DELIVERY".equals(role)) {
+        if ("DELIVERY_PARTNER".equals(accountType)) {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/delivery.fxml"));
             Parent root = loader.load();
             DeliveryController controller = loader.getController();
-            controller.setDeliveryUser(username);
+            controller.setDeliveryUser(email);
             Scene scene = new Scene(root, 1400, 860);
             scene.getStylesheets().add(getClass().getResource("/styles/theme.css").toExternalForm());
             stage.setScene(scene);
@@ -108,11 +113,15 @@ public class LoginController {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/main.fxml"));
         Parent root = loader.load();
         MainController controller = loader.getController();
-        controller.initializeCustomerSession(username);
+        controller.initializeCustomerSession(email);
         Scene scene = new Scene(root, 1400, 860);
         scene.getStylesheets().add(getClass().getResource("/styles/theme.css").toExternalForm());
         stage.setScene(scene);
         stage.setTitle("Delivery Route Cost Optimizer - Customer Console");
+    }
+
+    private boolean isValidEmail(String email) {
+        return email != null && email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
     }
 
     private void showError(String message) {

@@ -403,7 +403,7 @@ public class AdminController {
                 setText(item);
                 switch (item) {
                     case "CUSTOMER" -> setStyle("-fx-font-weight: bold; -fx-text-fill: #0D9488;");
-                    case "DELIVERY" -> setStyle("-fx-font-weight: bold; -fx-text-fill: #F97316;");
+                    case "DELIVERY", "DELIVERY_PARTNER" -> setStyle("-fx-font-weight: bold; -fx-text-fill: #F97316;");
                     case "ADMIN" -> setStyle("-fx-font-weight: bold; -fx-text-fill: #7C3AED;");
                     default -> setStyle("");
                 }
@@ -460,8 +460,8 @@ public class AdminController {
         allUsers.clear();
         for (UserRepository.UserRecord user : userRepository.getAllUsersWithOrderCount()) {
             allUsers.add(new UserRow(
-                    user.username(),
-                    user.role(),
+                    user.identifier(),
+                    user.accountType(),
                     user.createdAt(),
                     user.active(),
                     user.ordersCount()

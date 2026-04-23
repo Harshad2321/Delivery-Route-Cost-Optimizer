@@ -13,8 +13,8 @@ import com.deliveryroute.algorithm.Graph;
 import com.deliveryroute.bridge.JavaScriptBridge;
 import com.deliveryroute.cost.StandardCostStrategy;
 import com.deliveryroute.cost.TollFreeCostStrategy;
-import com.deliveryroute.database.OrderRepository;
 import com.deliveryroute.database.NotificationRepository;
+import com.deliveryroute.database.OrderRepository;
 import com.deliveryroute.database.RatingRepository;
 import com.deliveryroute.database.RouteRepository;
 import com.deliveryroute.database.TrackingRepository;
@@ -71,7 +71,7 @@ public class MainController {
         DELIVERY
     }
 
-    private record LoginSession(UserRole role, String username) {}
+    private record LoginSession(UserRole role, String email) {}
     
     @FXML private VBox homePanel;
     @FXML private VBox appPanel;
@@ -241,7 +241,7 @@ public class MainController {
 
     private void startUserSession(LoginSession session) {
         currentUserRole = session.role();
-        currentUsername = session.username();
+        currentUsername = session.email();
 
         if (currentUserRole == UserRole.ADMIN) {
             openAdminDashboard(currentUsername);
@@ -431,9 +431,9 @@ public class MainController {
         ButtonType loginButtonType = new ButtonType("Login", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(loginButtonType, ButtonType.CANCEL);
 
-        ComboBox<String> roleCombo = new ComboBox<>(FXCollections.observableArrayList("Customer", "Admin", "Delivery"));
+        ComboBox<String> roleCombo = new ComboBox<>(FXCollections.observableArrayList("Customer", "Delivery Partner"));
         roleCombo.setValue("Customer");
-        TextField usernameField = new TextField();
+        TextField emailField = new TextField();
         PasswordField passwordField = new PasswordField();
         Label helpLabel = new Label("Default users are available, or create a new account via Sign Up");
         helpLabel.setStyle("-fx-font-size: 10; -fx-text-fill: #666;");
@@ -443,8 +443,8 @@ public class MainController {
         grid.setHgap(10);
         grid.add(new Label("Role:"), 0, 0);
         grid.add(roleCombo, 1, 0);
-        grid.add(new Label("Username:"), 0, 1);
-        grid.add(usernameField, 1, 1);
+        grid.add(new Label("Email:"), 0, 1);
+        grid.add(emailField, 1, 1);
         grid.add(new Label("Password:"), 0, 2);
         grid.add(passwordField, 1, 2);
         grid.add(helpLabel, 0, 3, 2, 1);
@@ -454,16 +454,22 @@ public class MainController {
         Node loginDialogButton = dialog.getDialogPane().lookupButton(loginButtonType);
         loginDialogButton.addEventFilter(ActionEvent.ACTION, event -> {
             UserRole role = parseRole(roleCombo.getValue());
-            String username = usernameField.getText() == null ? "" : usernameField.getText().trim();
+            String email = emailField.getText() == null ? "" : emailField.getText().trim().toLowerCase();
             String password = passwordField.getText() == null ? "" : passwordField.getText().trim();
 
-            if (username.isEmpty() || password.isEmpty()) {
+            if (email.isEmpty() || password.isEmpty()) {
                 event.consume();
-                showError("Username and password are required");
+                showError("Email and password are required");
                 return;
             }
 
-            if (!isValidCredential(role, username, password)) {
+            if (!isValidEmail(email)) {
+                event.consume();
+                showError("Enter a valid email address");
+                return;
+            }
+
+            if (!isValidCredential(role, email, password)) {
                 event.consume();
                 showError("Invalid credentials for selected role");
             }
@@ -471,7 +477,7 @@ public class MainController {
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == loginButtonType) {
-                return new LoginSession(parseRole(roleCombo.getValue()), usernameField.getText().trim());
+                return new LoginSession(parseRole(roleCombo.getValue()), emailField.getText().trim().toLowerCase());
             }
             return null;
         });
@@ -488,9 +494,10 @@ public class MainController {
         ButtonType signupButtonType = new ButtonType("Create Account", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(signupButtonType, ButtonType.CANCEL);
 
-        ComboBox<String> roleCombo = new ComboBox<>(FXCollections.observableArrayList("Customer", "Delivery"));
+        ComboBox<String> roleCombo = new ComboBox<>(FXCollections.observableArrayList("Customer", "Delivery Partner"));
         roleCombo.setValue("Customer");
-        TextField usernameField = new TextField();
+        TextField fullNameField = new TextField();
+        TextField emailField = new TextField();
         PasswordField passwordField = new PasswordField();
         PasswordField confirmField = new PasswordField();
 
@@ -499,24 +506,33 @@ public class MainController {
         grid.setHgap(10);
         grid.add(new Label("Role:"), 0, 0);
         grid.add(roleCombo, 1, 0);
-        grid.add(new Label("Username:"), 0, 1);
-        grid.add(usernameField, 1, 1);
-        grid.add(new Label("Password:"), 0, 2);
-        grid.add(passwordField, 1, 2);
-        grid.add(new Label("Confirm:"), 0, 3);
-        grid.add(confirmField, 1, 3);
+        grid.add(new Label("Name:"), 0, 1);
+        grid.add(fullNameField, 1, 1);
+        grid.add(new Label("Email:"), 0, 2);
+        grid.add(emailField, 1, 2);
+        grid.add(new Label("Password:"), 0, 3);
+        grid.add(passwordField, 1, 3);
+        grid.add(new Label("Confirm:"), 0, 4);
+        grid.add(confirmField, 1, 4);
 
         dialog.getDialogPane().setContent(grid);
 
         Node signupDialogButton = dialog.getDialogPane().lookupButton(signupButtonType);
         signupDialogButton.addEventFilter(ActionEvent.ACTION, event -> {
-            String username = usernameField.getText() == null ? "" : usernameField.getText().trim();
+            String fullName = fullNameField.getText() == null ? "" : fullNameField.getText().trim();
+            String email = emailField.getText() == null ? "" : emailField.getText().trim().toLowerCase();
             String password = passwordField.getText() == null ? "" : passwordField.getText().trim();
             String confirm = confirmField.getText() == null ? "" : confirmField.getText().trim();
 
-            if (username.length() < 3) {
+            if (fullName.length() < 2) {
                 event.consume();
-                showError("Username must be at least 3 characters");
+                showError("Name must be at least 2 characters");
+                return;
+            }
+
+            if (!isValidEmail(email)) {
+                event.consume();
+                showError("Enter a valid email address");
                 return;
             }
 
@@ -532,20 +548,19 @@ public class MainController {
                 return;
             }
 
-            if (userRepository.usernameExists(username)) {
+            if (userRepository.emailExists(email)) {
                 event.consume();
-                showError("Username already exists");
+                showError("Email already exists");
                 return;
             }
 
             UserRole role = parseRole(roleCombo.getValue());
-            if (role == UserRole.ADMIN) {
-                event.consume();
-                showError("Admin signup is not allowed");
-                return;
-            }
-
-            boolean created = userRepository.registerUser(username, password, role.name());
+            boolean created = userRepository.registerUser(
+                    fullName,
+                    email,
+                    password,
+                    mapUserRoleToAccountType(role)
+            );
             if (!created) {
                 event.consume();
                 showError("Could not create account. Check database settings.");
@@ -554,7 +569,7 @@ public class MainController {
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == signupButtonType) {
-                return new LoginSession(parseRole(roleCombo.getValue()), usernameField.getText().trim());
+                return new LoginSession(parseRole(roleCombo.getValue()), emailField.getText().trim().toLowerCase());
             }
             return null;
         });
@@ -564,17 +579,28 @@ public class MainController {
     }
 
     private UserRole parseRole(String roleText) {
-        if ("Admin".equalsIgnoreCase(roleText)) {
-            return UserRole.ADMIN;
-        }
-        if ("Delivery".equalsIgnoreCase(roleText)) {
+        if ("Delivery".equalsIgnoreCase(roleText) || "Delivery Partner".equalsIgnoreCase(roleText)) {
             return UserRole.DELIVERY;
         }
         return UserRole.CUSTOMER;
     }
 
-    private boolean isValidCredential(UserRole role, String username, String password) {
-        return userRepository.authenticate(username, password, role.name());
+    private boolean isValidCredential(UserRole role, String email, String password) {
+        return userRepository.authenticate(email, password, mapUserRoleToAccountType(role));
+    }
+
+    private String mapUserRoleToAccountType(UserRole role) {
+        if (role == UserRole.DELIVERY) {
+            return "DELIVERY_PARTNER";
+        }
+        if (role == UserRole.ADMIN) {
+            return "ADMIN";
+        }
+        return "CUSTOMER";
+    }
+
+    private boolean isValidEmail(String email) {
+        return email != null && email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
     }
 
     private void applyRolePermissions() {

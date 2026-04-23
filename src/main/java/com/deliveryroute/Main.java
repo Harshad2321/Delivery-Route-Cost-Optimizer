@@ -1,5 +1,7 @@
 package com.deliveryroute;
 
+import com.deliveryroute.web.AuthWebServer;
+
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -13,6 +15,8 @@ public class Main extends Application {
     
     @Override
     public void start(Stage primaryStage) throws Exception {
+        AuthWebServer.start(8081);
+
         // Load FXML
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/login.fxml"));
         Parent root = loader.load();
@@ -26,7 +30,10 @@ public class Main extends Application {
         primaryStage.setScene(scene);
         primaryStage.setWidth(1400);
         primaryStage.setHeight(860);
-        primaryStage.setOnCloseRequest(e -> System.exit(0));
+        primaryStage.setOnCloseRequest(e -> {
+            AuthWebServer.stop();
+            System.exit(0);
+        });
 
         primaryStage.show();
     }

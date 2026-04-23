@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Delivery Route Cost Optimizer - Delivery Console</title>
+  <link rel="stylesheet" href="styles/theme-web.css" />
+</head>
+<body class="page" id="deliveryScreen">
+  <div class="delivery-shell root-shell">
+    <header class="delivery-topbar card">
+      <strong id="deliveryUserLabel" style="font-size: 16px;">Delivery Partner</strong>
+      <div style="margin-left: auto;"></div>
+      <span id="bellLabel" class="bell-icon" title="Notifications" data-action="openNotifications">🔔</span>
+      <span id="unreadBadgeLabel" class="badge-unread">0</span>
+    </header>
+
+    <aside class="delivery-left">
+      <section class="card panel">
+        <h2 style="margin: 0; font-size: 20px; font-weight: 700;">Available Orders</h2>
+        <div class="table-wrap" aria-label="Delivery Orders Table Wrapper">
+          <table id="deliveryAvailableTable" aria-label="Available Orders Table">
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Route</th>
+                <th>Product Specs</th>
+                <th>Recommended Vehicle</th>
+                <th>Best Route</th>
+                <th>Cost</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <h3 style="margin: 12px 0 0; font-size: 16px;">Accepted By Me</h3>
+        <div class="table-wrap">
+          <table id="deliveryMyOrdersTable">
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Route</th>
+                <th>Status</th>
+                <th>Slot</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <button id="simulateMovementButton" class="btn btn-primary" type="button">Simulate Movement (+10%)</button>
+        <p id="trackingStatusLabel" class="status-info" style="margin: 0;">Tracking inactive</p>
+      </section>
+    </aside>
+
+    <section aria-label="Map Panel">
+      <iframe id="mapWebView" class="delivery-map" title="Delivery Map" src="map.html"></iframe>
+    </section>
+  </div>
+
+  <section id="deliveryNotificationsModal" class="modal-overlay hidden" aria-label="Delivery Notifications Dialog">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Notifications</h3>
+        <button class="btn" type="button" data-close-modal="deliveryNotificationsModal">Close</button>
+      </div>
+      <ul id="deliveryNotificationsListView" style="margin: 0; padding-left: 18px;"></ul>
+      <div class="modal-actions">
+        <button id="deliveryMarkAllReadButton" class="btn btn-primary" type="button">Mark all read</button>
+      </div>
+    </div>
+  </section>
+
+  <script src="scripts/app.js"></script>
+</body>
+</html>
