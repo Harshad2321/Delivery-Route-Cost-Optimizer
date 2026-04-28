@@ -626,14 +626,12 @@
       });
     });
 
-    // Initialize customer dashboard with city dropdowns and manual inputs
+    // Initialize customer dashboard with city dropdowns and predefined route pricing inputs
     var pickupCitySelect = byId("pickupCity");
     var dropCitySelect = byId("dropCity");
     var estimateCostButton = byId("estimateCostButton");
     var costSummaryText = byId("costSummaryText");
     var statusLabel = byId("statusLabel");
-    var distanceField = byId("distanceKm");
-    var tollField = byId("tollAmount");
     var dimensionUnitSelect = byId("dimensionUnit");
     var dimensionPresetSelect = byId("dimensionPreset");
     var dimensionPresetPanel = byId("dimensionPresetPanel");
@@ -659,6 +657,18 @@
       { name: "Bhopal", lat: 23.1815, lng: 79.9864 }
     ];
 
+    var PREDEFINED_ROUTE_ESTIMATES = {
+      "mumbai|pune": { distanceKm: 150, tollAmount: 35 },
+      "mumbai|nashik": { distanceKm: 167, tollAmount: 45 },
+      "mumbai|aurangabad": { distanceKm: 335, tollAmount: 95 },
+      "pune|nashik": { distanceKm: 211, tollAmount: 55 },
+      "pune|aurangabad": { distanceKm: 235, tollAmount: 60 },
+      "nagpur|bhopal": { distanceKm: 352, tollAmount: 90 },
+      "indore|ahmedabad": { distanceKm: 400, tollAmount: 110 },
+      "indore|bhopal": { distanceKm: 195, tollAmount: 45 },
+      "ahmedabad|mumbai": { distanceKm: 525, tollAmount: 150 }
+    };
+
     // Populate city dropdowns
     if (pickupCitySelect && dropCitySelect) {
       CITIES.forEach(function (city) {
@@ -675,14 +685,81 @@
 
       pickupCitySelect.addEventListener("change", function () {
         if (statusLabel) {
-          statusLabel.textContent = "Update distance and estimate cost.";
+          statusLabel.textContent = "Pickup/drop selected. Click Estimate Cost.";
         }
       });
       dropCitySelect.addEventListener("change", function () {
         if (statusLabel) {
-          statusLabel.textContent = "Update distance and estimate cost.";
+          statusLabel.textContent = "Pickup/drop selected. Click Estimate Cost.";
         }
       });
+    }
+
+    function findCityByName(name) {
+      return CITIES.find(function (city) {
+        return city.name === name;
+      }) || null;
+    }
+
+    function normalizeRouteKey(cityA, cityB) {
+      var pair = [String(cityA || "").toLowerCase(), String(cityB || "").toLowerCase()].sort();
+      return pair[0] + "|" + pair[1];
+    }
+
+    function toRadians(value) {
+      return value * Math.PI / 180;
+    }
+
+    function estimateDistanceFromCoordinates(fromCity, toCity) {
+      var earthRadiusKm = 6371;
+      var dLat = toRadians(toCity.lat - fromCity.lat);
+      var dLng = toRadians(toCity.lng - fromCity.lng);
+      var lat1 = toRadians(fromCity.lat);
+      var lat2 = toRadians(toCity.lat);
+
+      var a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+        + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      var straightLine = earthRadiusKm * c;
+
+      // Inflate straight-line distance to approximate real road distance.
+      return Math.round(straightLine * 1.26);
+    }
+
+    function estimateTollFromDistance(distanceKm) {
+      if (distanceKm <= 120) {
+        return 15;
+      }
+      if (distanceKm <= 220) {
+        return 45;
+      }
+      if (distanceKm <= 360) {
+        return 85;
+      }
+      return 125;
+    }
+
+    function getRouteEstimate(pickupCity, dropCity) {
+      if (!pickupCity || !dropCity || pickupCity === dropCity) {
+        return null;
+      }
+
+      var routeKey = normalizeRouteKey(pickupCity, dropCity);
+      if (PREDEFINED_ROUTE_ESTIMATES[routeKey]) {
+        return PREDEFINED_ROUTE_ESTIMATES[routeKey];
+      }
+
+      var pickup = findCityByName(pickupCity);
+      var drop = findCityByName(dropCity);
+      if (!pickup || !drop) {
+        return null;
+      }
+
+      var fallbackDistance = estimateDistanceFromCoordinates(pickup, drop);
+      return {
+        distanceKm: fallbackDistance,
+        tollAmount: estimateTollFromDistance(fallbackDistance)
+      };
     }
 
     function parseNumber(value, fallback) {
@@ -850,18 +927,22 @@
     }
 
     function calculateCost() {
-      var distanceKm = parseNumber(distanceField ? distanceField.value : 0, 0);
-      var tollCost = Math.max(0, parseNumber(tollField ? tollField.value : 0, 0));
+      var pickupCity = pickupCitySelect ? pickupCitySelect.value : "";
+      var dropCity = dropCitySelect ? dropCitySelect.value : "";
 
-      if (distanceKm <= 0) {
+      var routeEstimate = getRouteEstimate(pickupCity, dropCity);
+      if (!routeEstimate) {
         if (statusLabel) {
-          statusLabel.textContent = "Enter a valid distance to estimate cost.";
+          statusLabel.textContent = "Select different pickup and drop cities to estimate cost.";
         }
         if (costSummaryText) {
-          costSummaryText.value = "Distance is required before estimating the cost.";
+          costSummaryText.value = "Pickup and drop cities must be selected and cannot be the same.";
         }
         return;
       }
+
+      var distanceKm = routeEstimate.distanceKm;
+      var tollCost = routeEstimate.tollAmount;
 
       var vehicleType = byId("vehicleType") ? byId("vehicleType").value : "Bike";
       var vehicleCosts = {
@@ -873,8 +954,6 @@
       var rate = vehicleCosts[vehicleType] || 2;
       var totalCost = (distanceKm * rate) + tollCost;
 
-      var pickupCity = pickupCitySelect ? pickupCitySelect.value : "";
-      var dropCity = dropCitySelect ? dropCitySelect.value : "";
       var orderType = byId("orderType") ? byId("orderType").value : "";
       var weightValue = parseNumber(byId("weightKg") ? byId("weightKg").value : 0, 0);
       var dimensionSummary = getDimensionSummary();
@@ -884,9 +963,9 @@
         + "Weight: " + (weightValue || 0) + " kg\n"
         + "Dimensions: " + dimensionSummary + "\n"
         + "Vehicle: " + vehicleType + "\n"
-        + "Distance: " + distanceKm.toFixed(1) + " km\n"
+        + "Distance (predefined): " + distanceKm.toFixed(1) + " km\n"
         + "Price per km: " + rate.toFixed(2) + "\n"
-        + "Toll: " + tollCost.toFixed(2) + "\n"
+        + "Toll (predefined): " + tollCost.toFixed(2) + "\n"
         + "-------------------\n"
         + "TOTAL COST: " + totalCost.toFixed(2);
 
@@ -902,27 +981,12 @@
       estimateCostButton.addEventListener("click", calculateCost);
     }
 
-    if (distanceField) {
-      distanceField.addEventListener("input", function () {
-        if (statusLabel) {
-          statusLabel.textContent = "Click Estimate Cost to refresh.";
-        }
-      });
-    }
-
-    if (tollField) {
-      tollField.addEventListener("input", function () {
-        if (statusLabel) {
-          statusLabel.textContent = "Click Estimate Cost to refresh.";
-        }
-      });
-    }
-
     var vehicleTypeSelect = byId("vehicleType");
     if (vehicleTypeSelect) {
       vehicleTypeSelect.addEventListener("change", function () {
-        var distanceKm = parseNumber(distanceField ? distanceField.value : 0, 0);
-        if (distanceKm > 0) {
+        var pickupCity = pickupCitySelect ? pickupCitySelect.value : "";
+        var dropCity = dropCitySelect ? dropCitySelect.value : "";
+        if (getRouteEstimate(pickupCity, dropCity)) {
           calculateCost();
         }
       });
