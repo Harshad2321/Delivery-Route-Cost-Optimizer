@@ -9,6 +9,7 @@
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
@@ -137,9 +138,69 @@
             </VBox>
 
             <VBox fx:id="settingsPane" visible="false" managed="false" spacing="10" alignment="TOP_LEFT" style="-fx-background-color: white; -fx-padding: 14; -fx-background-radius: 8;">
-                <Label text="Settings" style="-fx-font-size: 24; -fx-font-weight: bold; -fx-text-fill: #0F172A;"/>
-                <Label text="System refresh runs every 30 seconds for dashboard metrics and analytics." style="-fx-text-fill: #334155;"/>
-                <Label text="Use Orders tab to assign delivery personnel." style="-fx-text-fill: #334155;"/>
+                <Label text="Admin CRUD Settings" style="-fx-font-size: 24; -fx-font-weight: bold; -fx-text-fill: #0F172A;"/>
+                <Label text="Manage vehicle configs, item restrictions, pricing rules, and delivery records." style="-fx-text-fill: #334155;"/>
+
+                <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
+                    <VBox spacing="14" style="-fx-padding: 4 0 4 0;">
+                        <VBox spacing="8" style="-fx-background-color: #F8FAFC; -fx-padding: 10; -fx-background-radius: 8;">
+                            <Label text="1. Vehicle Configuration (Create / Read / Update / Delete)" style="-fx-font-size: 14; -fx-font-weight: bold;"/>
+                            <HBox spacing="8">
+                                <ComboBox fx:id="adminVehicleTypeCombo" prefWidth="110"/>
+                                <TextField fx:id="adminVehicleMaxWeightField" promptText="Max weight (kg)" prefWidth="120"/>
+                                <TextField fx:id="adminVehicleMaxDistanceField" promptText="Max distance (km)" prefWidth="120"/>
+                                <TextField fx:id="adminVehiclePricePerKmField" promptText="Price/km" prefWidth="100"/>
+                                <TextField fx:id="adminVehicleTollField" promptText="Toll" prefWidth="90"/>
+                                <TextField fx:id="adminVehicleProfitField" promptText="Driver profit %" prefWidth="120"/>
+                            </HBox>
+                            <HBox spacing="8">
+                                <Button text="Add / Update Vehicle" onAction="#addOrUpdateVehicleConfig" style="-fx-background-color: #16A34A; -fx-text-fill: white;"/>
+                                <Button text="Delete Vehicle" onAction="#deleteVehicleConfig" style="-fx-background-color: #DC2626; -fx-text-fill: white;"/>
+                            </HBox>
+                            <TextArea fx:id="vehicleConfigsTextArea" prefRowCount="5" editable="false" wrapText="true"/>
+                        </VBox>
+
+                        <VBox spacing="8" style="-fx-background-color: #F8FAFC; -fx-padding: 10; -fx-background-radius: 8;">
+                            <Label text="2. Item Types and Restrictions (Create / Read / Update / Delete)" style="-fx-font-size: 14; -fx-font-weight: bold;"/>
+                            <HBox spacing="8">
+                                <TextField fx:id="adminItemTypeNameField" promptText="Item type name" prefWidth="180"/>
+                                <TextField fx:id="adminItemAllowedVehiclesField" promptText="Allowed vehicles (Bike,Van,Truck)" prefWidth="240"/>
+                                <TextField fx:id="adminItemBasePriceField" promptText="Base price/km" prefWidth="110"/>
+                                <TextField fx:id="adminItemTollThresholdField" promptText="Toll threshold km" prefWidth="130"/>
+                            </HBox>
+                            <HBox spacing="8">
+                                <Button text="Add / Update Item" onAction="#addOrUpdateItemType" style="-fx-background-color: #16A34A; -fx-text-fill: white;"/>
+                                <Button text="Delete Item" onAction="#deleteItemType" style="-fx-background-color: #DC2626; -fx-text-fill: white;"/>
+                            </HBox>
+                            <TextArea fx:id="itemTypesTextArea" prefRowCount="5" editable="false" wrapText="true"/>
+                        </VBox>
+
+                        <VBox spacing="8" style="-fx-background-color: #F8FAFC; -fx-padding: 10; -fx-background-radius: 8;">
+                            <Label text="3. Pricing Rules (Create / Read / Update / Delete)" style="-fx-font-size: 14; -fx-font-weight: bold;"/>
+                            <HBox spacing="8">
+                                <TextField fx:id="adminPricingRuleNameField" promptText="Rule name" prefWidth="180"/>
+                                <TextField fx:id="adminPricingBasePriceField" promptText="Base price/km" prefWidth="110"/>
+                                <TextField fx:id="adminPricingTollThresholdField" promptText="Toll threshold km" prefWidth="130"/>
+                                <TextField fx:id="adminPricingTollAmountField" promptText="Toll amount" prefWidth="110"/>
+                            </HBox>
+                            <HBox spacing="8">
+                                <Button text="Add / Update Rule" onAction="#addOrUpdatePricingRule" style="-fx-background-color: #16A34A; -fx-text-fill: white;"/>
+                                <Button text="Delete Rule" onAction="#deletePricingRule" style="-fx-background-color: #DC2626; -fx-text-fill: white;"/>
+                            </HBox>
+                            <TextArea fx:id="pricingRulesTextArea" prefRowCount="5" editable="false" wrapText="true"/>
+                        </VBox>
+
+                        <VBox spacing="8" style="-fx-background-color: #F8FAFC; -fx-padding: 10; -fx-background-radius: 8;">
+                            <Label text="4. Delivery Records (Update Status / Delete)" style="-fx-font-size: 14; -fx-font-weight: bold;"/>
+                            <HBox spacing="8">
+                                <TextField fx:id="adminManageOrderIdField" promptText="Order ID" prefWidth="120"/>
+                                <ComboBox fx:id="adminManageOrderStatusCombo" prefWidth="170"/>
+                                <Button text="Update Status" onAction="#updateOrderStatusByAdmin" style="-fx-background-color: #2563EB; -fx-text-fill: white;"/>
+                                <Button text="Delete Order" onAction="#deleteOrderByAdmin" style="-fx-background-color: #DC2626; -fx-text-fill: white;"/>
+                            </HBox>
+                        </VBox>
+                    </VBox>
+                </ScrollPane>
             </VBox>
         </StackPane>
     </center>

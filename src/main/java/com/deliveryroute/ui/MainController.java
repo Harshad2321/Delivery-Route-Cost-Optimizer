@@ -13,6 +13,7 @@ import com.deliveryroute.algorithm.Graph;
 import com.deliveryroute.bridge.JavaScriptBridge;
 import com.deliveryroute.cost.StandardCostStrategy;
 import com.deliveryroute.cost.TollFreeCostStrategy;
+import com.deliveryroute.database.AdminConfigRepository;
 import com.deliveryroute.database.NotificationRepository;
 import com.deliveryroute.database.OrderRepository;
 import com.deliveryroute.database.RatingRepository;
@@ -22,6 +23,7 @@ import com.deliveryroute.database.UserRepository;
 import com.deliveryroute.exception.RouteNotFoundException;
 import com.deliveryroute.model.Bike;
 import com.deliveryroute.model.City;
+import com.deliveryroute.model.ConfigurableVehicle;
 import com.deliveryroute.model.Route;
 import com.deliveryroute.model.Truck;
 import com.deliveryroute.model.Van;
@@ -112,6 +114,7 @@ public class MainController {
     private RatingRepository ratingRepository;
     private TrackingRepository trackingRepository;
     private UserRepository userRepository;
+    private AdminConfigRepository adminConfigRepository;
     private TrackingService trackingService;
     private Route currentRoute;
     private boolean mapInitialized;
@@ -137,6 +140,7 @@ public class MainController {
         ratingRepository = new RatingRepository();
         trackingRepository = new TrackingRepository();
         userRepository = new UserRepository();
+        adminConfigRepository = new AdminConfigRepository();
         trackingService = new TrackingService(graph, orderRepository, trackingRepository, userRepository);
         mapInitialized = false;
         mapInitializationPending = false;
@@ -1192,11 +1196,40 @@ public class MainController {
         if (selected == null) return null;
 
         String vehicleType = (String) selected.getUserData();
+        AdminConfigRepository.VehicleConfig config = adminConfigRepository.getVehicleConfigByType(vehicleType);
+        if (config != null) {
+            return new ConfigurableVehicle(
+                    config.vehicleType(),
+                    vehicleTypeLabel(config.vehicleType()),
+                    config.pricePerKm(),
+                    config.maxWeightKg(),
+                    vehicleColor(config.vehicleType())
+            );
+        }
+
         return switch (vehicleType) {
             case "Bike" -> new Bike();
             case "Van" -> new Van();
             case "Truck" -> new Truck();
             default -> null;
+        };
+    }
+
+    private String vehicleTypeLabel(String vehicleType) {
+        return switch (vehicleType.toUpperCase()) {
+            case "BIKE" -> "Bike";
+            case "VAN" -> "Van";
+            case "TRUCK" -> "Truck";
+            default -> vehicleType;
+        };
+    }
+
+    private String vehicleColor(String vehicleType) {
+        return switch (vehicleType.toUpperCase()) {
+            case "BIKE" -> "#22C55E";
+            case "VAN" -> "#3B82F6";
+            case "TRUCK" -> "#EF4444";
+            default -> "#64748B";
         };
     }
 

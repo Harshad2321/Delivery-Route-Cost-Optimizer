@@ -626,14 +626,12 @@
       });
     });
 
-    // Initialize customer dashboard with city dropdowns and manual inputs
+    // Initialize customer dashboard with city dropdowns and predefined route pricing inputs
     var pickupCitySelect = byId("pickupCity");
     var dropCitySelect = byId("dropCity");
     var estimateCostButton = byId("estimateCostButton");
     var costSummaryText = byId("costSummaryText");
     var statusLabel = byId("statusLabel");
-    var distanceField = byId("distanceKm");
-    var tollField = byId("tollAmount");
     var dimensionUnitSelect = byId("dimensionUnit");
     var dimensionPresetSelect = byId("dimensionPreset");
     var dimensionPresetPanel = byId("dimensionPresetPanel");
@@ -659,6 +657,18 @@
       { name: "Bhopal", lat: 23.1815, lng: 79.9864 }
     ];
 
+    var PREDEFINED_ROUTE_ESTIMATES = {
+      "mumbai|pune": { distanceKm: 150, tollAmount: 35 },
+      "mumbai|nashik": { distanceKm: 167, tollAmount: 45 },
+      "mumbai|aurangabad": { distanceKm: 335, tollAmount: 95 },
+      "pune|nashik": { distanceKm: 211, tollAmount: 55 },
+      "pune|aurangabad": { distanceKm: 235, tollAmount: 60 },
+      "nagpur|bhopal": { distanceKm: 352, tollAmount: 90 },
+      "indore|ahmedabad": { distanceKm: 400, tollAmount: 110 },
+      "indore|bhopal": { distanceKm: 195, tollAmount: 45 },
+      "ahmedabad|mumbai": { distanceKm: 525, tollAmount: 150 }
+    };
+
     // Populate city dropdowns
     if (pickupCitySelect && dropCitySelect) {
       CITIES.forEach(function (city) {
@@ -675,14 +685,81 @@
 
       pickupCitySelect.addEventListener("change", function () {
         if (statusLabel) {
-          statusLabel.textContent = "Update distance and estimate cost.";
+          statusLabel.textContent = "Pickup/drop selected. Click Estimate Cost.";
         }
       });
       dropCitySelect.addEventListener("change", function () {
         if (statusLabel) {
-          statusLabel.textContent = "Update distance and estimate cost.";
+          statusLabel.textContent = "Pickup/drop selected. Click Estimate Cost.";
         }
       });
+    }
+
+    function findCityByName(name) {
+      return CITIES.find(function (city) {
+        return city.name === name;
+      }) || null;
+    }
+
+    function normalizeRouteKey(cityA, cityB) {
+      var pair = [String(cityA || "").toLowerCase(), String(cityB || "").toLowerCase()].sort();
+      return pair[0] + "|" + pair[1];
+    }
+
+    function toRadians(value) {
+      return value * Math.PI / 180;
+    }
+
+    function estimateDistanceFromCoordinates(fromCity, toCity) {
+      var earthRadiusKm = 6371;
+      var dLat = toRadians(toCity.lat - fromCity.lat);
+      var dLng = toRadians(toCity.lng - fromCity.lng);
+      var lat1 = toRadians(fromCity.lat);
+      var lat2 = toRadians(toCity.lat);
+
+      var a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+        + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      var straightLine = earthRadiusKm * c;
+
+      // Inflate straight-line distance to approximate real road distance.
+      return Math.round(straightLine * 1.26);
+    }
+
+    function estimateTollFromDistance(distanceKm) {
+      if (distanceKm <= 120) {
+        return 15;
+      }
+      if (distanceKm <= 220) {
+        return 45;
+      }
+      if (distanceKm <= 360) {
+        return 85;
+      }
+      return 125;
+    }
+
+    function getRouteEstimate(pickupCity, dropCity) {
+      if (!pickupCity || !dropCity || pickupCity === dropCity) {
+        return null;
+      }
+
+      var routeKey = normalizeRouteKey(pickupCity, dropCity);
+      if (PREDEFINED_ROUTE_ESTIMATES[routeKey]) {
+        return PREDEFINED_ROUTE_ESTIMATES[routeKey];
+      }
+
+      var pickup = findCityByName(pickupCity);
+      var drop = findCityByName(dropCity);
+      if (!pickup || !drop) {
+        return null;
+      }
+
+      var fallbackDistance = estimateDistanceFromCoordinates(pickup, drop);
+      return {
+        distanceKm: fallbackDistance,
+        tollAmount: estimateTollFromDistance(fallbackDistance)
+      };
     }
 
     function parseNumber(value, fallback) {
@@ -850,18 +927,22 @@
     }
 
     function calculateCost() {
-      var distanceKm = parseNumber(distanceField ? distanceField.value : 0, 0);
-      var tollCost = Math.max(0, parseNumber(tollField ? tollField.value : 0, 0));
+      var pickupCity = pickupCitySelect ? pickupCitySelect.value : "";
+      var dropCity = dropCitySelect ? dropCitySelect.value : "";
 
-      if (distanceKm <= 0) {
+      var routeEstimate = getRouteEstimate(pickupCity, dropCity);
+      if (!routeEstimate) {
         if (statusLabel) {
-          statusLabel.textContent = "Enter a valid distance to estimate cost.";
+          statusLabel.textContent = "Select different pickup and drop cities to estimate cost.";
         }
         if (costSummaryText) {
-          costSummaryText.value = "Distance is required before estimating the cost.";
+          costSummaryText.value = "Pickup and drop cities must be selected and cannot be the same.";
         }
         return;
       }
+
+      var distanceKm = routeEstimate.distanceKm;
+      var tollCost = routeEstimate.tollAmount;
 
       var vehicleType = byId("vehicleType") ? byId("vehicleType").value : "Bike";
       var vehicleCosts = {
@@ -873,8 +954,6 @@
       var rate = vehicleCosts[vehicleType] || 2;
       var totalCost = (distanceKm * rate) + tollCost;
 
-      var pickupCity = pickupCitySelect ? pickupCitySelect.value : "";
-      var dropCity = dropCitySelect ? dropCitySelect.value : "";
       var orderType = byId("orderType") ? byId("orderType").value : "";
       var weightValue = parseNumber(byId("weightKg") ? byId("weightKg").value : 0, 0);
       var dimensionSummary = getDimensionSummary();
@@ -884,9 +963,9 @@
         + "Weight: " + (weightValue || 0) + " kg\n"
         + "Dimensions: " + dimensionSummary + "\n"
         + "Vehicle: " + vehicleType + "\n"
-        + "Distance: " + distanceKm.toFixed(1) + " km\n"
+        + "Distance (predefined): " + distanceKm.toFixed(1) + " km\n"
         + "Price per km: " + rate.toFixed(2) + "\n"
-        + "Toll: " + tollCost.toFixed(2) + "\n"
+        + "Toll (predefined): " + tollCost.toFixed(2) + "\n"
         + "-------------------\n"
         + "TOTAL COST: " + totalCost.toFixed(2);
 
@@ -902,27 +981,12 @@
       estimateCostButton.addEventListener("click", calculateCost);
     }
 
-    if (distanceField) {
-      distanceField.addEventListener("input", function () {
-        if (statusLabel) {
-          statusLabel.textContent = "Click Estimate Cost to refresh.";
-        }
-      });
-    }
-
-    if (tollField) {
-      tollField.addEventListener("input", function () {
-        if (statusLabel) {
-          statusLabel.textContent = "Click Estimate Cost to refresh.";
-        }
-      });
-    }
-
     var vehicleTypeSelect = byId("vehicleType");
     if (vehicleTypeSelect) {
       vehicleTypeSelect.addEventListener("change", function () {
-        var distanceKm = parseNumber(distanceField ? distanceField.value : 0, 0);
-        if (distanceKm > 0) {
+        var pickupCity = pickupCitySelect ? pickupCitySelect.value : "";
+        var dropCity = dropCitySelect ? dropCitySelect.value : "";
+        if (getRouteEstimate(pickupCity, dropCity)) {
           calculateCost();
         }
       });
@@ -930,13 +994,52 @@
   }
 
   function initAdminScreen() {
+    var adminPickupCity = byId("adminPickupCity");
+    var adminDropCity = byId("adminDropCity");
+    var adminCities = [
+      "Mumbai",
+      "Pune",
+      "Aurangabad",
+      "Nashik",
+      "Nagpur",
+      "Ahmedabad",
+      "Indore",
+      "Bhopal"
+    ];
+
+    if (adminPickupCity && adminDropCity) {
+      adminPickupCity.innerHTML = "";
+      adminDropCity.innerHTML = "";
+
+      adminCities.forEach(function (cityName) {
+        var pickupOption = document.createElement("option");
+        pickupOption.value = cityName;
+        pickupOption.textContent = cityName;
+        adminPickupCity.appendChild(pickupOption);
+
+        var dropOption = document.createElement("option");
+        dropOption.value = cityName;
+        dropOption.textContent = cityName;
+        adminDropCity.appendChild(dropOption);
+      });
+
+      if (adminCities.length > 1) {
+        adminPickupCity.value = adminCities[0];
+        adminDropCity.value = adminCities[1];
+      }
+    }
+
     var navMap = [
       ["dashboardNavButton", "dashboardPane"],
       ["ordersNavButton", "ordersPane"],
+      ["crudNavButton", "crudPane"],
+      ["ridersNavButton", "usersPane"],
       ["usersNavButton", "usersPane"],
       ["analyticsNavButton", "analyticsPane"],
       ["settingsNavButton", "settingsPane"]
-    ];
+    ].filter(function (pair) {
+      return byId(pair[0]) && byId(pair[1]);
+    });
 
     function activate(targetBtnId, targetPaneId) {
       navMap.forEach(function (pair) {
@@ -961,7 +1064,9 @@
       });
     });
 
-    activate("dashboardNavButton", "dashboardPane");
+    if (navMap.length > 0) {
+      activate(navMap[0][0], navMap[0][1]);
+    }
 
     var ordersTable = byId("ordersTable");
     var assignModal = byId("assignOrderModal");
@@ -983,6 +1088,392 @@
         closeModal("assignOrderModal");
       });
     }
+
+    // ========== ORDER CRUD HANDLERS ==========
+    var adminCreateOrderBtn = byId("adminCreateOrderBtn");
+    if (adminCreateOrderBtn) {
+      adminCreateOrderBtn.addEventListener("click", function () {
+        handleCreateOrder();
+      });
+    }
+
+    var adminUpdateOrderBtn = byId("adminUpdateOrderBtn");
+    if (adminUpdateOrderBtn) {
+      adminUpdateOrderBtn.addEventListener("click", function () {
+        handleUpdateOrder();
+      });
+    }
+
+    var adminDeleteOrderBtn = byId("adminDeleteOrderBtn");
+    if (adminDeleteOrderBtn) {
+      adminDeleteOrderBtn.addEventListener("click", function () {
+        handleDeleteOrder();
+      });
+    }
+
+    // ========== RIDER CRUD HANDLERS ==========
+    loadAndDisplayRiders();
+    loadAndDisplayOrders();  // Load orders tab on init
+
+    var riderCreateBtn = byId("riderCreateBtn");
+    if (riderCreateBtn) {
+      riderCreateBtn.addEventListener("click", function () {
+        handleCreateRider();
+      });
+    }
+
+    var riderClearBtn = byId("riderClearBtn");
+    if (riderClearBtn) {
+      riderClearBtn.addEventListener("click", function () {
+        clearRiderForm();
+      });
+    }
+
+    // Load orders on Orders Lifecycle tab click
+    var ordersNavButton = byId("ordersNavButton");
+    if (ordersNavButton) {
+      ordersNavButton.addEventListener("click", function () {
+        loadAndDisplayAllOrdersByStatus();
+      });
+    }
+  }
+
+  function handleCreateOrder() {
+    var customerEmail = (byId("adminCustomerEmail") || {}).value || "";
+    var pickupCity = (byId("adminPickupCity") || {}).value || "";
+    var dropCity = (byId("adminDropCity") || {}).value || "";
+    var vehicleType = (byId("adminVehicleType") || {}).value || "";
+    var weightKg = parseFloat((byId("adminWeightKg") || {}).value || "0");
+    var pickupSlot = (byId("adminPickupSlot") || {}).value || "";
+
+    if (!customerEmail || !pickupCity || !dropCity || !vehicleType) {
+      alert("Please fill in all required fields");
+      return;
+    }
+
+    var payload = {
+      customerEmail: customerEmail.trim(),
+      pickupCity: pickupCity,
+      dropCity: dropCity,
+      vehicleType: vehicleType,
+      weightKg: weightKg,
+      pickupSlot: pickupSlot
+    };
+
+    fetch(API_BASE + "/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then(function (response) {
+        return response.json().then(function (data) {
+          return { ok: response.ok, data: data };
+        });
+      })
+      .then(function (result) {
+        if (result.ok || result.data.success) {
+          alert("Order created successfully! ID: " + result.data.orderId);
+          clearOrderForm();
+          loadAndDisplayOrders();
+        } else {
+          alert("Error creating order: " + (result.data.message || "Unknown error"));
+        }
+      })
+      .catch(function (err) {
+        alert("Network error: " + err.message);
+      });
+  }
+
+  function handleUpdateOrder() {
+    var orderId = parseInt((byId("adminOrderId") || {}).value || "0");
+    var pickupCity = (byId("adminPickupCity") || {}).value || "";
+    var dropCity = (byId("adminDropCity") || {}).value || "";
+    var vehicleType = (byId("adminVehicleType") || {}).value || "";
+    var weightKg = parseFloat((byId("adminWeightKg") || {}).value || "0");
+    var status = (byId("adminStatus") || {}).value || "CREATED";
+    var pickupSlot = (byId("adminPickupSlot") || {}).value || "";
+
+    if (orderId <= 0 || !pickupCity || !dropCity) {
+      alert("Please enter a valid Order ID and required fields");
+      return;
+    }
+
+    var payload = {
+      orderId: orderId,
+      action: "updateDetails",
+      pickupCity: pickupCity,
+      dropCity: dropCity,
+      vehicleType: vehicleType,
+      weightKg: weightKg,
+      status: status,
+      pickupSlot: pickupSlot
+    };
+
+    fetch(API_BASE + "/api/orders", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then(function (response) {
+        return response.json().then(function (data) {
+          return { ok: response.ok, data: data };
+        });
+      })
+      .then(function (result) {
+        if (result.ok || result.data.success) {
+          alert("Order updated successfully!");
+          clearOrderForm();
+          loadAndDisplayOrders();
+        } else {
+          alert("Error updating order: " + (result.data.message || "Unknown error"));
+        }
+      })
+      .catch(function (err) {
+        alert("Network error: " + err.message);
+      });
+  }
+
+  function handleDeleteOrder() {
+    var orderId = parseInt((byId("adminOrderId") || {}).value || "0");
+
+    if (orderId <= 0) {
+      alert("Please enter a valid Order ID");
+      return;
+    }
+
+    if (!confirm("Are you sure you want to delete order #" + orderId + "?")) {
+      return;
+    }
+
+    fetch(API_BASE + "/api/orders?id=" + orderId, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" }
+    })
+      .then(function (response) {
+        return response.json().then(function (data) {
+          return { ok: response.ok, data: data };
+        });
+      })
+      .then(function (result) {
+        if (result.ok || result.data.success) {
+          alert("Order deleted successfully!");
+          clearOrderForm();
+          loadAndDisplayOrders();
+        } else {
+          alert("Error deleting order: " + (result.data.message || "Unknown error"));
+        }
+      })
+      .catch(function (err) {
+        alert("Network error: " + err.message);
+      });
+  }
+
+  function clearOrderForm() {
+    var inputs = ["adminOrderId", "adminCustomerEmail", "adminWeightKg", "adminPickupSlot"];
+    inputs.forEach(function (id) {
+      var el = byId(id);
+      if (el) {
+        el.value = "";
+      }
+    });
+  }
+
+  function loadAndDisplayOrders() {
+    fetch(API_BASE + "/api/orders")
+      .then(function (response) {
+        return response.json();
+      })
+      .then(function (result) {
+        if (result.success && result.orders) {
+          var tbody = document.querySelector("#ordersTable tbody");
+          if (tbody) {
+            tbody.innerHTML = "";
+            result.orders.forEach(function (order) {
+              var row = document.createElement("tr");
+              var assignedRider = order.assignedRider ? order.assignedRider : "-";
+              var slot = order.slot || "-";
+              var specs = order.vehicleType;
+              
+              row.innerHTML = "<td>" + order.id + "</td>" +
+                "<td>" + (order.customerEmail || "-") + "</td>" +
+                "<td>" + order.sourceCity + " → " + order.destinationCity + "</td>" +
+                "<td>" + specs + "</td>" +
+                "<td>" + order.vehicleType + "</td>" +
+                "<td><strong>" + order.status + "</strong></td>" +
+                "<td>" + assignedRider + "</td>" +
+                "<td>" + slot + "</td>" +
+                "<td><button class='btn btn-small' onclick=\"populateOrderFormForEdit(" + order.id + ", '" + order.sourceCity + "', '" + order.destinationCity + "', '" + order.vehicleType + "', '" + order.status + "')\">Edit</button></td>";
+              tbody.appendChild(row);
+            });
+          }
+        }
+      })
+      .catch(function (err) {
+        console.error("Error loading orders:", err);
+      });
+  }
+
+  function populateOrderFormForEdit(id, src, dst, vehicle, status) {
+    byId("adminOrderId").value = id;
+    byId("adminPickupCity").value = src;
+    byId("adminDropCity").value = dst;
+    byId("adminVehicleType").value = vehicle;
+    byId("adminStatus").value = status;
+  }
+
+  function loadAndDisplayRiders() {
+    fetch(API_BASE + "/api/riders")
+      .then(function (response) {
+        return response.json();
+      })
+      .then(function (result) {
+        if (result.success && result.riders) {
+          var tbody = document.querySelector("#usersTable tbody");
+          if (tbody) {
+            tbody.innerHTML = "";
+            result.riders.forEach(function (rider) {
+              var row = document.createElement("tr");
+              row.innerHTML = "<td>" + rider.id + "</td>" +
+                "<td>" + rider.name + "</td>" +
+                "<td>" + rider.phoneNumber + "</td>" +
+                "<td>" + rider.vehicleType + "</td>" +
+                "<td>" + rider.availability + "</td>" +
+                "<td>" + rider.currentCity + "</td>" +
+                "<td><button class='btn btn-small btn-blue' onclick=\"editRiderModal(" + rider.id + ")\">Edit</button> <button class='btn btn-small btn-orange' onclick=\"deleteRider(" + rider.id + ")\">Delete</button></td>";
+              tbody.appendChild(row);
+            });
+          }
+        }
+      })
+      .catch(function (err) {
+        console.error("Error loading riders:", err);
+      });
+  }
+
+  function deleteRider(riderId) {
+    if (!confirm("Are you sure you want to delete rider #" + riderId + "?")) {
+      return;
+    }
+
+    fetch(API_BASE + "/api/riders?id=" + riderId, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" }
+    })
+      .then(function (response) {
+        return response.json();
+      })
+      .then(function (result) {
+        if (result.success) {
+          alert("Rider deleted successfully!");
+          loadAndDisplayRiders();
+        } else {
+          alert("Error deleting rider: " + (result.message || "Unknown error"));
+        }
+      })
+      .catch(function (err) {
+        alert("Network error: " + err.message);
+      });
+  }
+
+  function editRiderModal(riderId) {
+    alert("Edit functionality for rider #" + riderId + " can be implemented in a modal dialog");
+  }
+
+  function handleCreateRider() {
+    var name = (byId("riderName") || {}).value || "";
+    var phone = (byId("riderPhone") || {}).value || "";
+    var vehicleType = (byId("riderVehicleType") || {}).value || "";
+    var currentCity = (byId("riderCity") || {}).value || "";
+
+    if (!name || !phone || !vehicleType || !currentCity) {
+      alert("Please fill in all required fields");
+      return;
+    }
+
+    var payload = {
+      name: name.trim(),
+      phoneNumber: phone.trim(),
+      vehicleType: vehicleType,
+      currentCity: currentCity
+    };
+
+    fetch(API_BASE + "/api/riders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then(function (response) {
+        return response.json().then(function (data) {
+          return { ok: response.ok, data: data };
+        });
+      })
+      .then(function (result) {
+        if (result.ok || result.data.success) {
+          alert("Rider created successfully! ID: " + result.data.riderId);
+          clearRiderForm();
+          loadAndDisplayRiders();
+        } else {
+          alert("Error creating rider: " + (result.data.message || "Unknown error"));
+        }
+      })
+      .catch(function (err) {
+        alert("Network error: " + err.message);
+      });
+  }
+
+  function clearRiderForm() {
+    var inputs = ["riderName", "riderPhone"];
+    inputs.forEach(function (id) {
+      var el = byId(id);
+      if (el) {
+        el.value = "";
+      }
+    });
+
+    var select1 = byId("riderVehicleType");
+    if (select1) {
+      select1.value = "Bike";
+    }
+
+    var select2 = byId("riderCity");
+    if (select2) {
+      select2.value = "Mumbai";
+    }
+  }
+
+  function loadAndDisplayAllOrdersByStatus() {
+    fetch(API_BASE + "/api/orders")
+      .then(function (response) {
+        return response.json();
+      })
+      .then(function (result) {
+        if (result.success && result.orders) {
+          var tbody = document.querySelector("#ordersTable tbody");
+          if (tbody) {
+            tbody.innerHTML = "";
+            result.orders.forEach(function (order) {
+              var row = document.createElement("tr");
+              var assignedRider = order.assignedRider ? order.assignedRider : "-";
+              var slot = order.slot || "-";
+              var specs = order.vehicleType;
+              
+              row.innerHTML = "<td>" + order.id + "</td>" +
+                "<td>" + (order.customerEmail || "-") + "</td>" +
+                "<td>" + order.sourceCity + " → " + order.destinationCity + "</td>" +
+                "<td>" + specs + "</td>" +
+                "<td>" + order.vehicleType + "</td>" +
+                "<td><strong>" + order.status + "</strong></td>" +
+                "<td>" + assignedRider + "</td>" +
+                "<td>" + slot + "</td>" +
+                "<td><button class='btn btn-small' onclick=\"populateOrderFormForEdit(" + order.id + ", '" + order.sourceCity + "', '" + order.destinationCity + "', '" + order.vehicleType + "', '" + order.status + "')\">Edit</button></td>";
+              tbody.appendChild(row);
+            });
+          }
+        }
+      })
+      .catch(function (err) {
+        console.error("Error loading orders:", err);
+      });
   }
 
   function initDeliveryScreen() {

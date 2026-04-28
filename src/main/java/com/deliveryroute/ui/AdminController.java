@@ -17,6 +17,7 @@ import com.deliveryroute.database.NotificationRepository;
 import com.deliveryroute.database.OrderRepository;
 import com.deliveryroute.database.RatingRepository;
 import com.deliveryroute.database.UserRepository;
+import com.deliveryroute.database.AdminConfigRepository;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -39,6 +40,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
@@ -68,6 +70,29 @@ public class AdminController {
     @FXML private VBox usersPane;
     @FXML private VBox analyticsPane;
     @FXML private VBox settingsPane;
+
+    @FXML private ComboBox<String> adminVehicleTypeCombo;
+    @FXML private TextField adminVehicleMaxWeightField;
+    @FXML private TextField adminVehicleMaxDistanceField;
+    @FXML private TextField adminVehiclePricePerKmField;
+    @FXML private TextField adminVehicleTollField;
+    @FXML private TextField adminVehicleProfitField;
+    @FXML private TextArea vehicleConfigsTextArea;
+
+    @FXML private TextField adminItemTypeNameField;
+    @FXML private TextField adminItemAllowedVehiclesField;
+    @FXML private TextField adminItemBasePriceField;
+    @FXML private TextField adminItemTollThresholdField;
+    @FXML private TextArea itemTypesTextArea;
+
+    @FXML private TextField adminPricingRuleNameField;
+    @FXML private TextField adminPricingBasePriceField;
+    @FXML private TextField adminPricingTollThresholdField;
+    @FXML private TextField adminPricingTollAmountField;
+    @FXML private TextArea pricingRulesTextArea;
+
+    @FXML private TextField adminManageOrderIdField;
+    @FXML private ComboBox<String> adminManageOrderStatusCombo;
 
     @FXML private Label totalOrdersTodayLabel;
     @FXML private Label revenueTodayLabel;
@@ -106,6 +131,7 @@ public class AdminController {
     private final UserRepository userRepository = new UserRepository();
     private final RatingRepository ratingRepository = new RatingRepository();
     private final NotificationRepository notificationRepository = new NotificationRepository();
+    private final AdminConfigRepository adminConfigRepository = new AdminConfigRepository();
 
     private final ObservableList<OrderRow> allOrders = FXCollections.observableArrayList();
     private FilteredList<OrderRow> filteredOrders;
@@ -119,10 +145,12 @@ public class AdminController {
         setupOrderTable();
         setupUserTable();
         setupFilters();
+        setupAdminCrudPanel();
         loadOrders();
         loadUsers();
         refreshDashboard();
         refreshAnalytics();
+        refreshAdminCrudData();
         startAutoRefresh();
 
         Platform.runLater(() -> {
@@ -513,6 +541,266 @@ public class AdminController {
         loadUsers();
         refreshDashboard();
         refreshAnalytics();
+        refreshAdminCrudData();
+    }
+
+    private void setupAdminCrudPanel() {
+        if (adminVehicleTypeCombo != null) {
+            adminVehicleTypeCombo.setItems(FXCollections.observableArrayList("Bike", "Van", "Truck"));
+            adminVehicleTypeCombo.setValue("Bike");
+        }
+
+        if (adminManageOrderStatusCombo != null) {
+            adminManageOrderStatusCombo.setItems(FXCollections.observableArrayList("PLACED", "ACCEPTED", "DELIVERED", "CANCELLED"));
+            adminManageOrderStatusCombo.setValue("PLACED");
+        }
+    }
+
+    private void refreshAdminCrudData() {
+        if (vehicleConfigsTextArea != null) {
+            StringBuilder sb = new StringBuilder();
+            for (AdminConfigRepository.VehicleConfig config : adminConfigRepository.getVehicleConfigs()) {
+                sb.append(config.vehicleType())
+                  .append(" | maxWeight=").append(String.format("%.1f", config.maxWeightKg())).append("kg")
+                  .append(" | maxDistance=").append(String.format("%.1f", config.maxDistanceKm())).append("km")
+                  .append(" | price/km=INR ").append(String.format("%.2f", config.pricePerKm()))
+                  .append(" | toll=INR ").append(String.format("%.2f", config.tollCharge()))
+                  .append(" | driverProfit=").append(String.format("%.2f", config.driverProfit())).append("%")
+                  .append("\n");
+            }
+            vehicleConfigsTextArea.setText(sb.length() == 0 ? "No vehicle configs found" : sb.toString());
+        }
+
+        if (itemTypesTextArea != null) {
+            StringBuilder sb = new StringBuilder();
+            for (AdminConfigRepository.ItemTypeConfig config : adminConfigRepository.getItemTypes()) {
+                sb.append(config.name())
+                  .append(" | vehicles=").append(config.allowedVehicles())
+                  .append(" | basePrice/km=INR ").append(String.format("%.2f", config.basePricePerKm()))
+                  .append(" | tollThreshold=").append(String.format("%.1f", config.tollThresholdKm())).append("km")
+                  .append("\n");
+            }
+            itemTypesTextArea.setText(sb.length() == 0 ? "No item categories found" : sb.toString());
+        }
+
+        if (pricingRulesTextArea != null) {
+            StringBuilder sb = new StringBuilder();
+            for (AdminConfigRepository.PricingRuleConfig config : adminConfigRepository.getPricingRules()) {
+                sb.append(config.ruleName())
+                  .append(" | basePrice/km=INR ").append(String.format("%.2f", config.basePricePerKm()))
+                  .append(" | tollThreshold=").append(String.format("%.1f", config.tollThresholdKm())).append("km")
+                  .append(" | toll=INR ").append(String.format("%.2f", config.tollAmount()))
+                  .append("\n");
+            }
+            pricingRulesTextArea.setText(sb.length() == 0 ? "No pricing rules found" : sb.toString());
+        }
+    }
+
+    @FXML
+    private void addOrUpdateVehicleConfig(ActionEvent ignored) {
+        try {
+            String vehicleType = adminVehicleTypeCombo.getValue();
+            double maxWeight = parsePositiveDouble(adminVehicleMaxWeightField.getText(), "Max weight");
+            double maxDistance = parsePositiveDouble(adminVehicleMaxDistanceField.getText(), "Max distance");
+            double pricePerKm = parsePositiveDouble(adminVehiclePricePerKmField.getText(), "Price per km");
+            double toll = parseNonNegativeDouble(adminVehicleTollField.getText(), "Toll");
+            double driverProfit = parseNonNegativeDouble(adminVehicleProfitField.getText(), "Driver profit");
+
+            boolean ok = adminConfigRepository.upsertVehicleConfig(
+                    new AdminConfigRepository.VehicleConfig(vehicleType, maxWeight, maxDistance, pricePerKm, toll, driverProfit)
+            );
+            if (!ok) {
+                showError("Could not save vehicle config");
+                return;
+            }
+
+            refreshAdminCrudData();
+            showInfo("Vehicle config saved for " + vehicleType);
+        } catch (IllegalArgumentException ex) {
+            showError(ex.getMessage());
+        }
+    }
+
+    @FXML
+    private void deleteVehicleConfig(ActionEvent ignored) {
+        String vehicleType = adminVehicleTypeCombo.getValue();
+        if (vehicleType == null || vehicleType.isBlank()) {
+            showError("Select a vehicle type to delete");
+            return;
+        }
+        boolean ok = adminConfigRepository.deleteVehicleConfig(vehicleType);
+        if (!ok) {
+            showError("Vehicle config not found for " + vehicleType);
+            return;
+        }
+        refreshAdminCrudData();
+        showInfo("Vehicle config deleted for " + vehicleType);
+    }
+
+    @FXML
+    private void addOrUpdateItemType(ActionEvent ignored) {
+        try {
+            String name = safeText(adminItemTypeNameField.getText());
+            String allowedVehicles = safeText(adminItemAllowedVehiclesField.getText());
+            if (name.isBlank()) {
+                throw new IllegalArgumentException("Item type name is required");
+            }
+            if (allowedVehicles.isBlank()) {
+                throw new IllegalArgumentException("Allowed vehicles are required (example: Van,Truck)");
+            }
+
+            double basePrice = parsePositiveDouble(adminItemBasePriceField.getText(), "Item base price per km");
+            double threshold = parsePositiveDouble(adminItemTollThresholdField.getText(), "Item toll threshold");
+
+            boolean ok = adminConfigRepository.upsertItemType(
+                    new AdminConfigRepository.ItemTypeConfig(name, allowedVehicles, basePrice, threshold)
+            );
+            if (!ok) {
+                showError("Could not save item type");
+                return;
+            }
+
+            refreshAdminCrudData();
+            showInfo("Item type saved: " + name);
+        } catch (IllegalArgumentException ex) {
+            showError(ex.getMessage());
+        }
+    }
+
+    @FXML
+    private void deleteItemType(ActionEvent ignored) {
+        String name = safeText(adminItemTypeNameField.getText());
+        if (name.isBlank()) {
+            showError("Enter item type name to delete");
+            return;
+        }
+        boolean ok = adminConfigRepository.deleteItemType(name);
+        if (!ok) {
+            showError("Item type not found: " + name);
+            return;
+        }
+        refreshAdminCrudData();
+        showInfo("Item type deleted: " + name);
+    }
+
+    @FXML
+    private void addOrUpdatePricingRule(ActionEvent ignored) {
+        try {
+            String ruleName = safeText(adminPricingRuleNameField.getText());
+            if (ruleName.isBlank()) {
+                throw new IllegalArgumentException("Pricing rule name is required");
+            }
+
+            double basePrice = parsePositiveDouble(adminPricingBasePriceField.getText(), "Rule base price per km");
+            double tollThreshold = parsePositiveDouble(adminPricingTollThresholdField.getText(), "Rule toll threshold");
+            double tollAmount = parseNonNegativeDouble(adminPricingTollAmountField.getText(), "Rule toll amount");
+
+            boolean ok = adminConfigRepository.upsertPricingRule(
+                    new AdminConfigRepository.PricingRuleConfig(ruleName, basePrice, tollThreshold, tollAmount)
+            );
+            if (!ok) {
+                showError("Could not save pricing rule");
+                return;
+            }
+
+            refreshAdminCrudData();
+            showInfo("Pricing rule saved: " + ruleName);
+        } catch (IllegalArgumentException ex) {
+            showError(ex.getMessage());
+        }
+    }
+
+    @FXML
+    private void deletePricingRule(ActionEvent ignored) {
+        String ruleName = safeText(adminPricingRuleNameField.getText());
+        if (ruleName.isBlank()) {
+            showError("Enter pricing rule name to delete");
+            return;
+        }
+        boolean ok = adminConfigRepository.deletePricingRule(ruleName);
+        if (!ok) {
+            showError("Pricing rule not found: " + ruleName);
+            return;
+        }
+        refreshAdminCrudData();
+        showInfo("Pricing rule deleted: " + ruleName);
+    }
+
+    @FXML
+    private void updateOrderStatusByAdmin(ActionEvent ignored) {
+        try {
+            long orderId = parsePositiveLong(adminManageOrderIdField.getText(), "Order ID");
+            String status = adminManageOrderStatusCombo.getValue();
+            if (status == null || status.isBlank()) {
+                showError("Select a status");
+                return;
+            }
+            boolean ok = orderRepository.updateOrderStatusByAdmin(orderId, status);
+            if (!ok) {
+                showError("Order not found or update failed");
+                return;
+            }
+            refreshAllSections();
+            showInfo("Order #" + orderId + " updated to " + status);
+        } catch (IllegalArgumentException ex) {
+            showError(ex.getMessage());
+        }
+    }
+
+    @FXML
+    private void deleteOrderByAdmin(ActionEvent ignored) {
+        try {
+            long orderId = parsePositiveLong(adminManageOrderIdField.getText(), "Order ID");
+            boolean ok = orderRepository.deleteOrderByAdmin(orderId);
+            if (!ok) {
+                showError("Order not found or delete failed");
+                return;
+            }
+            refreshAllSections();
+            showInfo("Order #" + orderId + " deleted");
+        } catch (IllegalArgumentException ex) {
+            showError(ex.getMessage());
+        }
+    }
+
+    private String safeText(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private double parsePositiveDouble(String value, String fieldName) {
+        double parsed = parseDouble(value, fieldName);
+        if (parsed <= 0) {
+            throw new IllegalArgumentException(fieldName + " must be greater than 0");
+        }
+        return parsed;
+    }
+
+    private double parseNonNegativeDouble(String value, String fieldName) {
+        double parsed = parseDouble(value, fieldName);
+        if (parsed < 0) {
+            throw new IllegalArgumentException(fieldName + " cannot be negative");
+        }
+        return parsed;
+    }
+
+    private double parseDouble(String value, String fieldName) {
+        try {
+            return Double.parseDouble(safeText(value));
+        } catch (Exception ex) {
+            throw new IllegalArgumentException(fieldName + " must be a valid number");
+        }
+    }
+
+    private long parsePositiveLong(String value, String fieldName) {
+        try {
+            long parsed = Long.parseLong(safeText(value));
+            if (parsed <= 0) {
+                throw new IllegalArgumentException(fieldName + " must be greater than 0");
+            }
+            return parsed;
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException(fieldName + " must be a valid number");
+        }
     }
 
     public void shutdown() {

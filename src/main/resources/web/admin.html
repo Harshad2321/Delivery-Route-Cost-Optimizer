@@ -102,16 +102,49 @@
       </section>
 
       <section id="usersPane" class="panel hidden">
-        <h2 style="margin: 0; font-size: 24px; font-weight: 700; color: #0f172a;">Manual Rider Assignment</h2>
-        <div class="table-wrap" aria-label="Users Table Wrapper">
+        <h2 style="margin: 0; font-size: 24px; font-weight: 700; color: #0f172a;">Riders Management</h2>
+        <div class="panel-surface">
+          <div class="row" style="flex-wrap: wrap;">
+            <input id="riderName" type="text" placeholder="Rider Name" />
+            <input id="riderPhone" type="text" placeholder="Phone Number" />
+            <select id="riderVehicleType">
+              <option>Bike</option>
+              <option>Van</option>
+              <option>Truck</option>
+            </select>
+            <select id="riderAvailability">
+              <option>AVAILABLE</option>
+              <option>BUSY</option>
+              <option>OFF_DUTY</option>
+            </select>
+            <select id="riderCity">
+              <option>Mumbai</option>
+              <option>Pune</option>
+              <option>Aurangabad</option>
+              <option>Nashik</option>
+              <option>Nagpur</option>
+              <option>Ahmedabad</option>
+              <option>Indore</option>
+              <option>Bhopal</option>
+            </select>
+          </div>
+          <div class="row" style="margin-top: 8px;">
+            <button id="riderCreateBtn" class="btn btn-green" type="button">Add Rider</button>
+            <button id="riderClearBtn" class="btn btn-default" type="button">Clear</button>
+          </div>
+        </div>
+
+        <div class="table-wrap" aria-label="Riders Table Wrapper">
           <table id="usersTable">
             <thead>
               <tr>
-                <th>Order ID</th>
-                <th>Customer</th>
-                <th>Status</th>
-                <th>Assign Rider</th>
-                <th>Save</th>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Vehicle</th>
+                <th>Availability</th>
+                <th>City</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody></tbody>

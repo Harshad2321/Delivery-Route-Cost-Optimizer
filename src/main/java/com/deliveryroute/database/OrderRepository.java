@@ -32,8 +32,9 @@ public class OrderRepository {
 
         String sql = """
                 CREATE TABLE IF NOT EXISTS delivery_orders (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    customer_username VARCHAR(100) NOT NULL,
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    customer_email VARCHAR(191) NOT NULL,
+                    customer_username VARCHAR(100),
                     source_city VARCHAR(100) NOT NULL,
                     destination_city VARCHAR(100) NOT NULL,
                     vehicle_type VARCHAR(50) NOT NULL,
@@ -41,9 +42,21 @@ public class OrderRepository {
                     total_cost DECIMAL(10,2) NOT NULL,
                     status VARCHAR(30) NOT NULL,
                     assigned_delivery_username VARCHAR(100) NULL,
+                    assigned_rider_id BIGINT NULL,
+                    weight_kg DECIMAL(10,2) DEFAULT 0,
+                    pickup_slot VARCHAR(30),
                     placed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     accepted_at TIMESTAMP NULL,
-                    delivered_at TIMESTAMP NULL
+                    picked_at TIMESTAMP NULL,
+                    in_transit_at TIMESTAMP NULL,
+                    delivered_at TIMESTAMP NULL,
+                    estimated_minutes INT DEFAULT NULL,
+                    actual_delivery DATETIME DEFAULT NULL,
+                    CONSTRAINT chk_status CHECK (status IN ('CREATED', 'PLACED', 'ACCEPTED', 'PICKED', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED')),
+                    INDEX idx_status (status),
+                    INDEX idx_customer_email (customer_email),
+                    INDEX idx_assigned_rider (assigned_rider_id),
+                    INDEX idx_placed_at (placed_at DESC)
                 )
                 """;
 
@@ -51,8 +64,12 @@ public class OrderRepository {
              Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
             // Keep existing DBs compatible while adding new columns used by v2 features.
-            ensureColumn(stmt, "ALTER TABLE delivery_orders ADD COLUMN estimated_minutes INT DEFAULT NULL");
-            ensureColumn(stmt, "ALTER TABLE delivery_orders ADD COLUMN actual_delivery DATETIME DEFAULT NULL");
+            ensureColumn(stmt, "ALTER TABLE delivery_orders ADD COLUMN assigned_rider_id BIGINT NULL");
+            ensureColumn(stmt, "ALTER TABLE delivery_orders ADD COLUMN weight_kg DECIMAL(10,2) DEFAULT 0");
+            ensureColumn(stmt, "ALTER TABLE delivery_orders ADD COLUMN pickup_slot VARCHAR(30)");
+            ensureColumn(stmt, "ALTER TABLE delivery_orders ADD COLUMN picked_at TIMESTAMP NULL");
+            ensureColumn(stmt, "ALTER TABLE delivery_orders ADD COLUMN in_transit_at TIMESTAMP NULL");
+            ensureColumn(stmt, "ALTER TABLE delivery_orders ADD COLUMN customer_email VARCHAR(191)");
         } catch (SQLException e) {
             System.err.println("Error ensuring order table: " + e.getMessage());
         }
@@ -218,6 +235,184 @@ public class OrderRepository {
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
             System.err.println("Error assigning order: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean updateOrderStatusByAdmin(long orderId, String status) {
+        if (!dbConnection.isAvailable()) {
+            return false;
+        }
+
+        String normalized = status == null ? "" : status.trim().toUpperCase();
+        if (!List.of("CREATED", "PLACED", "ACCEPTED", "PICKED", "IN_TRANSIT", "DELIVERED", "CANCELLED").contains(normalized)) {
+            return false;
+        }
+
+        String sql = """
+                UPDATE delivery_orders
+                SET status = ?
+                WHERE id = ?
+                """;
+        try (Connection conn = dbConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, normalized);
+            stmt.setLong(2, orderId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Error updating order status by admin: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Create an order via admin API with full details
+     */
+    public long createOrderViaApi(String customerEmail, String pickupCity, String dropCity, 
+                                   String vehicleType, double weightKg, String pickupSlot) {
+        if (!dbConnection.isAvailable()) {
+            throw new RuntimeException("Database unavailable. Cannot create order.");
+        }
+
+        // Default cost calculation for now
+        double totalCost = estimateCost(vehicleType, 50.0); // default 50km
+
+        String sql = """
+                INSERT INTO delivery_orders (
+                    customer_email, source_city, destination_city, vehicle_type,
+                    cost_strategy, total_cost, status, weight_kg, pickup_slot
+                ) VALUES (?, ?, ?, ?, 'STANDARD', ?, 'CREATED', ?, ?)
+                """;
+
+        try (Connection conn = dbConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            stmt.setString(1, customerEmail);
+            stmt.setString(2, pickupCity);
+            stmt.setString(3, dropCity);
+            stmt.setString(4, vehicleType);
+            stmt.setDouble(5, totalCost);
+            stmt.setDouble(6, weightKg);
+            stmt.setString(7, pickupSlot);
+            stmt.executeUpdate();
+
+            try (ResultSet rs = stmt.getGeneratedKeys()) {
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to create order via API: " + e.getMessage(), e);
+        }
+
+        throw new RuntimeException("Failed to generate order ID");
+    }
+
+    /**
+     * Update order via admin API
+     */
+    public boolean updateOrderViaApi(long orderId, String pickupCity, String dropCity, 
+                                      String vehicleType, double weightKg, String status, String pickupSlot) {
+        if (!dbConnection.isAvailable()) {
+            return false;
+        }
+
+        String sql = """
+                UPDATE delivery_orders
+                SET source_city = ?, destination_city = ?, vehicle_type = ?, weight_kg = ?, status = ?, pickup_slot = ?
+                WHERE id = ?
+                """;
+
+        try (Connection conn = dbConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, pickupCity);
+            stmt.setString(2, dropCity);
+            stmt.setString(3, vehicleType);
+            stmt.setDouble(4, weightKg);
+            stmt.setString(5, status);
+            stmt.setString(6, pickupSlot);
+            stmt.setLong(7, orderId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Error updating order via API: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Mark order as picked up
+     */
+    public boolean markOrderPicked(long orderId) {
+        if (!dbConnection.isAvailable()) {
+            return false;
+        }
+
+        String sql = """
+                UPDATE delivery_orders
+                SET status = 'PICKED', picked_at = ?
+                WHERE id = ? AND status IN ('ACCEPTED', 'PICKED')
+                """;
+
+        try (Connection conn = dbConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setTimestamp(1, Timestamp.valueOf(LocalDateTime.now()));
+            stmt.setLong(2, orderId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Error marking order as picked: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Mark order as in transit
+     */
+    public boolean markOrderInTransit(long orderId) {
+        if (!dbConnection.isAvailable()) {
+            return false;
+        }
+
+        String sql = """
+                UPDATE delivery_orders
+                SET status = 'IN_TRANSIT', in_transit_at = ?
+                WHERE id = ? AND status IN ('PICKED', 'IN_TRANSIT')
+                """;
+
+        try (Connection conn = dbConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setTimestamp(1, Timestamp.valueOf(LocalDateTime.now()));
+            stmt.setLong(2, orderId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Error marking order as in transit: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Simple cost estimator
+     */
+    private double estimateCost(String vehicleType, double distanceKm) {
+        double pricePerKm = switch (vehicleType) {
+            case "Bike" -> 2.0;
+            case "Van" -> 3.5;
+            case "Truck" -> 5.0;
+            default -> 2.5;
+        };
+        return distanceKm * pricePerKm;
+    }
+
+    public boolean deleteOrderByAdmin(long orderId) {
+        if (!dbConnection.isAvailable()) {
+            return false;
+        }
+
+        String sql = "DELETE FROM delivery_orders WHERE id = ?";
+        try (Connection conn = dbConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, orderId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Error deleting order by admin: " + e.getMessage());
             return false;
         }
     }

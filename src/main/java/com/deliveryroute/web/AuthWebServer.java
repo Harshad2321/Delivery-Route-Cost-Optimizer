@@ -38,9 +38,30 @@ public final class AuthWebServer {
 
         try {
             server = HttpServer.create(new InetSocketAddress(port), 0);
+            
+            // Register specific API endpoints BEFORE the static handler
+            server.createContext("/api/orders", exchange -> {
+                try {
+                    ApiHandlers.handleOrderApi(exchange);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+            
+            server.createContext("/api/riders", exchange -> {
+                try {
+                    ApiHandlers.handleRiderApi(exchange);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+            
             server.createContext("/api/auth/login", AuthWebServer::handleLogin);
             server.createContext("/api/auth/register", AuthWebServer::handleRegister);
+            
+            // Static file handler last (catches everything else)
             server.createContext("/", AuthWebServer::handleStatic);
+            
             server.setExecutor(Executors.newCachedThreadPool());
             server.start();
             System.out.println("AuthWebServer running at http://localhost:" + port);

@@ -57,6 +57,16 @@ body {
   font-size: 14px;
 }
 
+.btn-small {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn-default {
+  background: #757575;
+  color: #fff;
+}
+
 .btn-primary {
   background: var(--accent);
   color: #fff;
