@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles/theme-web.css" />
 </head>
 <body class="page" id="mainScreen">
-  <div class="main-grid root-shell">
+  <div class="main-grid root-shell single-pane">
     <header class="main-topbar card">
       <strong style="font-size: 16px;">Customer Console</strong>
       <div style="margin-left: auto;"></div>
@@ -33,6 +33,9 @@
           <option>Fragile</option>
           <option>Furniture</option>
           <option>Groceries</option>
+          <option>Medicines</option>
+          <option>Industrial Goods</option>
+          <option>Heavy Machinery</option>
         </select>
 
         <label for="weightKg" style="font-size: 12px; font-weight: 700;">Weight (KG)</label>
@@ -44,11 +47,39 @@
           <option value="ft">Feet</option>
         </select>
 
-        <label style="font-size: 12px; font-weight: 700;">Dimensions (L x W x H)</label>
-        <div class="row">
-          <input id="lengthValue" type="number" min="1" placeholder="L" />
-          <input id="widthValue" type="number" min="1" placeholder="W" />
-          <input id="heightValue" type="number" min="1" placeholder="H" />
+        <label style="font-size: 12px; font-weight: 700;">Dimensions</label>
+        <div id="dimensionModeGroup" class="pill-toggle-group" role="group" aria-label="Dimension mode">
+          <button type="button" class="pill-toggle is-selected" data-dimension-mode="preset" aria-pressed="true">Preset size</button>
+          <button type="button" class="pill-toggle" data-dimension-mode="custom" aria-pressed="false">Custom sliders</button>
+        </div>
+
+        <div id="dimensionPresetPanel" class="panel-soft">
+          <label for="dimensionPreset" style="font-size: 12px; font-weight: 700;">Preset</label>
+          <select id="dimensionPreset">
+            <option value="Small">Small</option>
+            <option value="Medium">Medium</option>
+            <option value="Large">Large</option>
+            <option value="XL">XL</option>
+          </select>
+          <p id="presetHint" class="help-text" style="margin: 0;">Select a preset size.</p>
+        </div>
+
+        <div id="dimensionCustomPanel" class="panel-soft hidden">
+          <div class="slider-row">
+            <label for="lengthRange">Length</label>
+            <input id="lengthRange" type="range" />
+            <span id="lengthValueLabel" class="slider-value">-</span>
+          </div>
+          <div class="slider-row">
+            <label for="widthRange">Width</label>
+            <input id="widthRange" type="range" />
+            <span id="widthValueLabel" class="slider-value">-</span>
+          </div>
+          <div class="slider-row">
+            <label for="heightRange">Height</label>
+            <input id="heightRange" type="range" />
+            <span id="heightValueLabel" class="slider-value">-</span>
+          </div>
         </div>
 
         <label for="vehicleType" style="font-size: 12px; font-weight: 700;">Vehicle Preference</label>
@@ -99,9 +130,6 @@
       </section>
     </aside>
 
-    <section class="main-center" aria-label="Map and Home Center">
-      <iframe id="mapWebView" class="map-panel" title="Map View" src="map.html"></iframe>
-    </section>
   </div>
 
   <section id="notificationsModal" class="modal-overlay hidden" aria-label="Notifications Dialog">

@@ -460,13 +460,11 @@
     var homePanel = byId("homePanel");
     var appPanel = byId("appPanel");
     var homeCenterPane = byId("homeCenterPane");
-    var mapWebView = byId("mapWebView");
 
     function enterApp(username) {
       hide(homePanel);
       hide(homeCenterPane);
       show(appPanel);
-      show(mapWebView);
       setText("loggedInUserLabel", "Logged in: " + username + " (CUSTOMER)");
       setText("statusLabel", "Welcome " + username + "!");
     }
@@ -628,12 +626,27 @@
       });
     });
 
-    // Initialize customer dashboard with city dropdowns
+    // Initialize customer dashboard with city dropdowns and manual inputs
     var pickupCitySelect = byId("pickupCity");
     var dropCitySelect = byId("dropCity");
     var estimateCostButton = byId("estimateCostButton");
     var costSummaryText = byId("costSummaryText");
     var statusLabel = byId("statusLabel");
+    var distanceField = byId("distanceKm");
+    var tollField = byId("tollAmount");
+    var dimensionUnitSelect = byId("dimensionUnit");
+    var dimensionPresetSelect = byId("dimensionPreset");
+    var dimensionPresetPanel = byId("dimensionPresetPanel");
+    var dimensionCustomPanel = byId("dimensionCustomPanel");
+    var presetHint = byId("presetHint");
+    var lengthRange = byId("lengthRange");
+    var widthRange = byId("widthRange");
+    var heightRange = byId("heightRange");
+    var lengthValueLabel = byId("lengthValueLabel");
+    var widthValueLabel = byId("widthValueLabel");
+    var heightValueLabel = byId("heightValueLabel");
+    var dimensionModeButtons = document.querySelectorAll("#dimensionModeGroup [data-dimension-mode]");
+    var activeDimensionMode = "preset";
 
     var CITIES = [
       { name: "Mumbai", lat: 19.076, lng: 72.8777 },
@@ -660,49 +673,193 @@
         dropCitySelect.appendChild(option2);
       });
 
-      // Setup change listeners for automatic estimation
-      function onCityChange() {
-        var pickupCity = pickupCitySelect.value;
-        var dropCity = dropCitySelect.value;
-
-        if (pickupCity && dropCity && pickupCity !== dropCity) {
-          // Auto-calculate cost
-          calculateRoute(pickupCity, dropCity);
+      pickupCitySelect.addEventListener("change", function () {
+        if (statusLabel) {
+          statusLabel.textContent = "Update distance and estimate cost.";
         }
-      }
-
-      pickupCitySelect.addEventListener("change", onCityChange);
-      dropCitySelect.addEventListener("change", onCityChange);
+      });
+      dropCitySelect.addEventListener("change", function () {
+        if (statusLabel) {
+          statusLabel.textContent = "Update distance and estimate cost.";
+        }
+      });
     }
 
-    // Route calculation function
-    function calculateRoute(fromCity, toCity) {
-      // Hardcoded routes for demo (8 Indian cities)
-      var routes = {
-        "Mumbai|Pune": { distance: 149, fuel: 298, toll: 150, traffic: 74.5, total: 522.5 },
-        "Pune|Aurangabad": { distance: 210, fuel: 420, toll: 0, traffic: 84, total: 504 },
-        "Aurangabad|Nashik": { distance: 150, fuel: 300, toll: 100, traffic: 67.5, total: 467.5 },
-        "Nashik|Mumbai": { distance: 190, fuel: 380, toll: 0, traffic: 95, total: 475 },
-        "Nashik|Nagpur": { distance: 545, fuel: 1090, toll: 0, traffic: 190.75, total: 1280.75 },
-        "Nagpur|Indore": { distance: 580, fuel: 1740, toll: 200, traffic: 174, total: 2114 },
-        "Indore|Bhopal": { distance: 350, fuel: 1050, toll: 150, traffic: 140, total: 1340 },
-        "Bhopal|Nagpur": { distance: 380, fuel: 1140, toll: 0, traffic: 171, total: 1311 },
-        "Mumbai|Ahmedabad": { distance: 530, fuel: 1590, toll: 200, traffic: 291.5, total: 2081.5 },
-        "Ahmedabad|Indore": { distance: 380, fuel: 1140, toll: 0, traffic: 133, total: 1273 },
-        "Pune|Nashik": { distance: 220, fuel: 440, toll: 0, traffic: 110, total: 550 },
-        "Indore|Ahmedabad": { distance: 380, fuel: 1140, toll: 100, traffic: 152, total: 1392 },
-        "Aurangabad|Bhopal": { distance: 450, fuel: 900, toll: 100, traffic: 157.5, total: 1157.5 },
-        "Mumbai|Nagpur": { distance: 1150, fuel: 2300, toll: 400, traffic: 517.5, total: 3217.5 }
-      };
+    function parseNumber(value, fallback) {
+      var parsed = Number(String(value || "").trim());
+      return Number.isFinite(parsed) ? parsed : fallback;
+    }
 
-      // Check forward and reverse routes
-      var key1 = fromCity + "|" + toCity;
-      var key2 = toCity + "|" + fromCity;
-      var routeData = routes[key1] || routes[key2];
+    var PRESET_SIZES = {
+      cm: {
+        Small: { length: 20, width: 15, height: 10 },
+        Medium: { length: 40, width: 30, height: 20 },
+        Large: { length: 70, width: 50, height: 40 },
+        XL: { length: 120, width: 80, height: 60 }
+      },
+      ft: {
+        Small: { length: 1.5, width: 1, height: 1 },
+        Medium: { length: 3, width: 2, height: 2 },
+        Large: { length: 5, width: 3, height: 3 },
+        XL: { length: 7, width: 4, height: 4 }
+      }
+    };
 
-      if (!routeData) {
-        statusLabel.textContent = "No direct route available between these cities.";
-        costSummaryText.value = "Please select cities with an available route.";
+    function getUnitKey() {
+      if (dimensionUnitSelect && dimensionUnitSelect.value === "ft") {
+        return "ft";
+      }
+      return "cm";
+    }
+
+    function updateSliderRanges() {
+      var unitKey = getUnitKey();
+      var config = unitKey === "ft"
+        ? { min: 1, max: 8, step: 0.5 }
+        : { min: 5, max: 200, step: 1 };
+
+      [lengthRange, widthRange, heightRange].forEach(function (range) {
+        if (!range) {
+          return;
+        }
+        range.min = config.min;
+        range.max = config.max;
+        range.step = config.step;
+      });
+    }
+
+    function formatDimensionValue(value, unitKey) {
+      if (unitKey === "ft") {
+        return value.toFixed(1) + " ft";
+      }
+      return Math.round(value) + " cm";
+    }
+
+    function syncSliderLabels() {
+      var unitKey = getUnitKey();
+      if (lengthRange && lengthValueLabel) {
+        lengthValueLabel.textContent = formatDimensionValue(parseNumber(lengthRange.value, 0), unitKey);
+      }
+      if (widthRange && widthValueLabel) {
+        widthValueLabel.textContent = formatDimensionValue(parseNumber(widthRange.value, 0), unitKey);
+      }
+      if (heightRange && heightValueLabel) {
+        heightValueLabel.textContent = formatDimensionValue(parseNumber(heightRange.value, 0), unitKey);
+      }
+    }
+
+    function applyPreset() {
+      if (!dimensionPresetSelect) {
+        return;
+      }
+      var unitKey = getUnitKey();
+      var presetName = dimensionPresetSelect.value || "Small";
+      var preset = PRESET_SIZES[unitKey][presetName] || PRESET_SIZES[unitKey].Small;
+
+      if (lengthRange) {
+        lengthRange.value = preset.length;
+      }
+      if (widthRange) {
+        widthRange.value = preset.width;
+      }
+      if (heightRange) {
+        heightRange.value = preset.height;
+      }
+
+      if (presetHint) {
+        presetHint.textContent = presetName + ": " + preset.length + " x " + preset.width + " x " + preset.height + " " + unitKey;
+      }
+
+      syncSliderLabels();
+    }
+
+    function setDimensionMode(mode) {
+      activeDimensionMode = mode;
+      dimensionModeButtons.forEach(function (btn) {
+        var isActive = btn.getAttribute("data-dimension-mode") === mode;
+        btn.classList.toggle("is-selected", isActive);
+        btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+      });
+      if (dimensionPresetPanel && dimensionCustomPanel) {
+        if (mode === "preset") {
+          dimensionPresetPanel.classList.remove("hidden");
+          dimensionCustomPanel.classList.add("hidden");
+          applyPreset();
+        } else {
+          dimensionPresetPanel.classList.add("hidden");
+          dimensionCustomPanel.classList.remove("hidden");
+          syncSliderLabels();
+        }
+      }
+    }
+
+    if (dimensionModeButtons.length) {
+      dimensionModeButtons.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          setDimensionMode(btn.getAttribute("data-dimension-mode"));
+        });
+      });
+    }
+
+    if (dimensionPresetSelect) {
+      dimensionPresetSelect.addEventListener("change", function () {
+        if (activeDimensionMode === "preset") {
+          applyPreset();
+        }
+      });
+    }
+
+    if (dimensionUnitSelect) {
+      dimensionUnitSelect.addEventListener("change", function () {
+        updateSliderRanges();
+        if (activeDimensionMode === "preset") {
+          applyPreset();
+        } else {
+          syncSliderLabels();
+        }
+      });
+    }
+
+    [lengthRange, widthRange, heightRange].forEach(function (range) {
+      if (!range) {
+        return;
+      }
+      range.addEventListener("input", syncSliderLabels);
+    });
+
+    updateSliderRanges();
+    if (dimensionPresetSelect) {
+      applyPreset();
+    }
+    if (dimensionModeButtons.length) {
+      setDimensionMode("preset");
+    }
+
+    function getDimensionSummary() {
+      var unitKey = getUnitKey();
+      if (activeDimensionMode === "preset" && dimensionPresetSelect) {
+        var presetName = dimensionPresetSelect.value || "Small";
+        var preset = PRESET_SIZES[unitKey][presetName] || PRESET_SIZES[unitKey].Small;
+        return presetName + " (" + preset.length + " x " + preset.width + " x " + preset.height + " " + unitKey + ")";
+      }
+
+      var lengthVal = lengthRange ? parseNumber(lengthRange.value, 0) : 0;
+      var widthVal = widthRange ? parseNumber(widthRange.value, 0) : 0;
+      var heightVal = heightRange ? parseNumber(heightRange.value, 0) : 0;
+      return "Custom (" + lengthVal + " x " + widthVal + " x " + heightVal + " " + unitKey + ")";
+    }
+
+    function calculateCost() {
+      var distanceKm = parseNumber(distanceField ? distanceField.value : 0, 0);
+      var tollCost = Math.max(0, parseNumber(tollField ? tollField.value : 0, 0));
+
+      if (distanceKm <= 0) {
+        if (statusLabel) {
+          statusLabel.textContent = "Enter a valid distance to estimate cost.";
+        }
+        if (costSummaryText) {
+          costSummaryText.value = "Distance is required before estimating the cost.";
+        }
         return;
       }
 
@@ -713,31 +870,60 @@
         "Truck": 5
       };
 
-      var multiplier = vehicleCosts[vehicleType] || 2;
-      var adjustedFuel = routeData.fuel * multiplier / 2; // Adjust for vehicle type
-      var totalCost = adjustedFuel + routeData.toll + routeData.traffic;
+      var rate = vehicleCosts[vehicleType] || 2;
+      var totalCost = (distanceKm * rate) + tollCost;
 
-      var summary = `Route: ${fromCity} → ${toCity}
-Vehicle: ${vehicleType}
-Distance: ${routeData.distance} km
-Fuel Cost: ₹${adjustedFuel.toFixed(2)}
-Toll Cost: ₹${routeData.toll.toFixed(2)}
-Traffic Penalty: ₹${routeData.traffic.toFixed(2)}
-───────────────────
-TOTAL COST: ₹${totalCost.toFixed(2)}`;
+      var pickupCity = pickupCitySelect ? pickupCitySelect.value : "";
+      var dropCity = dropCitySelect ? dropCitySelect.value : "";
+      var orderType = byId("orderType") ? byId("orderType").value : "";
+      var weightValue = parseNumber(byId("weightKg") ? byId("weightKg").value : 0, 0);
+      var dimensionSummary = getDimensionSummary();
 
-      costSummaryText.value = summary;
-      statusLabel.textContent = `Route calculated: ${totalCost.toFixed(2)}₹ via ${vehicleType}`;
+      var summary = "Route: " + (pickupCity || "-") + " -> " + (dropCity || "-") + "\n"
+        + "Order Type: " + (orderType || "-") + "\n"
+        + "Weight: " + (weightValue || 0) + " kg\n"
+        + "Dimensions: " + dimensionSummary + "\n"
+        + "Vehicle: " + vehicleType + "\n"
+        + "Distance: " + distanceKm.toFixed(1) + " km\n"
+        + "Price per km: " + rate.toFixed(2) + "\n"
+        + "Toll: " + tollCost.toFixed(2) + "\n"
+        + "-------------------\n"
+        + "TOTAL COST: " + totalCost.toFixed(2);
+
+      if (costSummaryText) {
+        costSummaryText.value = summary;
+      }
+      if (statusLabel) {
+        statusLabel.textContent = "Estimate ready: " + totalCost.toFixed(2) + " INR";
+      }
     }
 
-    // Handle vehicle type change to recalculate
+    if (estimateCostButton) {
+      estimateCostButton.addEventListener("click", calculateCost);
+    }
+
+    if (distanceField) {
+      distanceField.addEventListener("input", function () {
+        if (statusLabel) {
+          statusLabel.textContent = "Click Estimate Cost to refresh.";
+        }
+      });
+    }
+
+    if (tollField) {
+      tollField.addEventListener("input", function () {
+        if (statusLabel) {
+          statusLabel.textContent = "Click Estimate Cost to refresh.";
+        }
+      });
+    }
+
     var vehicleTypeSelect = byId("vehicleType");
     if (vehicleTypeSelect) {
       vehicleTypeSelect.addEventListener("change", function () {
-        var pickupCity = pickupCitySelect ? pickupCitySelect.value : "";
-        var dropCity = dropCitySelect ? dropCitySelect.value : "";
-        if (pickupCity && dropCity && pickupCity !== dropCity) {
-          calculateRoute(pickupCity, dropCity);
+        var distanceKm = parseNumber(distanceField ? distanceField.value : 0, 0);
+        if (distanceKm > 0) {
+          calculateCost();
         }
       });
     }
