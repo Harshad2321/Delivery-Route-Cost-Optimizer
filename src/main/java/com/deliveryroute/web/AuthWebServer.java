@@ -201,6 +201,9 @@ public final class AuthWebServer {
         if ("/login".equals(path)) {
             return "/login/index.html";
         }
+        if ("/admin".equals(path) || "/admin/".equals(path)) {
+            return "/login/admin/index.html";
+        }
         if ("/login/admin".equals(path)) {
             return "/login/admin/index.html";
         }

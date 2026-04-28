@@ -627,6 +627,120 @@
         });
       });
     });
+
+    // Initialize customer dashboard with city dropdowns
+    var pickupCitySelect = byId("pickupCity");
+    var dropCitySelect = byId("dropCity");
+    var estimateCostButton = byId("estimateCostButton");
+    var costSummaryText = byId("costSummaryText");
+    var statusLabel = byId("statusLabel");
+
+    var CITIES = [
+      { name: "Mumbai", lat: 19.076, lng: 72.8777 },
+      { name: "Pune", lat: 18.5204, lng: 73.8567 },
+      { name: "Aurangabad", lat: 19.8762, lng: 75.3433 },
+      { name: "Nashik", lat: 19.9975, lng: 73.7898 },
+      { name: "Nagpur", lat: 21.1458, lng: 79.0882 },
+      { name: "Ahmedabad", lat: 23.0225, lng: 72.5714 },
+      { name: "Indore", lat: 22.7196, lng: 75.8577 },
+      { name: "Bhopal", lat: 23.1815, lng: 79.9864 }
+    ];
+
+    // Populate city dropdowns
+    if (pickupCitySelect && dropCitySelect) {
+      CITIES.forEach(function (city) {
+        var option1 = document.createElement("option");
+        option1.value = city.name;
+        option1.textContent = city.name;
+        pickupCitySelect.appendChild(option1);
+
+        var option2 = document.createElement("option");
+        option2.value = city.name;
+        option2.textContent = city.name;
+        dropCitySelect.appendChild(option2);
+      });
+
+      // Setup change listeners for automatic estimation
+      function onCityChange() {
+        var pickupCity = pickupCitySelect.value;
+        var dropCity = dropCitySelect.value;
+
+        if (pickupCity && dropCity && pickupCity !== dropCity) {
+          // Auto-calculate cost
+          calculateRoute(pickupCity, dropCity);
+        }
+      }
+
+      pickupCitySelect.addEventListener("change", onCityChange);
+      dropCitySelect.addEventListener("change", onCityChange);
+    }
+
+    // Route calculation function
+    function calculateRoute(fromCity, toCity) {
+      // Hardcoded routes for demo (8 Indian cities)
+      var routes = {
+        "Mumbai|Pune": { distance: 149, fuel: 298, toll: 150, traffic: 74.5, total: 522.5 },
+        "Pune|Aurangabad": { distance: 210, fuel: 420, toll: 0, traffic: 84, total: 504 },
+        "Aurangabad|Nashik": { distance: 150, fuel: 300, toll: 100, traffic: 67.5, total: 467.5 },
+        "Nashik|Mumbai": { distance: 190, fuel: 380, toll: 0, traffic: 95, total: 475 },
+        "Nashik|Nagpur": { distance: 545, fuel: 1090, toll: 0, traffic: 190.75, total: 1280.75 },
+        "Nagpur|Indore": { distance: 580, fuel: 1740, toll: 200, traffic: 174, total: 2114 },
+        "Indore|Bhopal": { distance: 350, fuel: 1050, toll: 150, traffic: 140, total: 1340 },
+        "Bhopal|Nagpur": { distance: 380, fuel: 1140, toll: 0, traffic: 171, total: 1311 },
+        "Mumbai|Ahmedabad": { distance: 530, fuel: 1590, toll: 200, traffic: 291.5, total: 2081.5 },
+        "Ahmedabad|Indore": { distance: 380, fuel: 1140, toll: 0, traffic: 133, total: 1273 },
+        "Pune|Nashik": { distance: 220, fuel: 440, toll: 0, traffic: 110, total: 550 },
+        "Indore|Ahmedabad": { distance: 380, fuel: 1140, toll: 100, traffic: 152, total: 1392 },
+        "Aurangabad|Bhopal": { distance: 450, fuel: 900, toll: 100, traffic: 157.5, total: 1157.5 },
+        "Mumbai|Nagpur": { distance: 1150, fuel: 2300, toll: 400, traffic: 517.5, total: 3217.5 }
+      };
+
+      // Check forward and reverse routes
+      var key1 = fromCity + "|" + toCity;
+      var key2 = toCity + "|" + fromCity;
+      var routeData = routes[key1] || routes[key2];
+
+      if (!routeData) {
+        statusLabel.textContent = "No direct route available between these cities.";
+        costSummaryText.value = "Please select cities with an available route.";
+        return;
+      }
+
+      var vehicleType = byId("vehicleType") ? byId("vehicleType").value : "Bike";
+      var vehicleCosts = {
+        "Bike": 2,
+        "Van": 3.5,
+        "Truck": 5
+      };
+
+      var multiplier = vehicleCosts[vehicleType] || 2;
+      var adjustedFuel = routeData.fuel * multiplier / 2; // Adjust for vehicle type
+      var totalCost = adjustedFuel + routeData.toll + routeData.traffic;
+
+      var summary = `Route: ${fromCity} → ${toCity}
+Vehicle: ${vehicleType}
+Distance: ${routeData.distance} km
+Fuel Cost: ₹${adjustedFuel.toFixed(2)}
+Toll Cost: ₹${routeData.toll.toFixed(2)}
+Traffic Penalty: ₹${routeData.traffic.toFixed(2)}
+───────────────────
+TOTAL COST: ₹${totalCost.toFixed(2)}`;
+
+      costSummaryText.value = summary;
+      statusLabel.textContent = `Route calculated: ${totalCost.toFixed(2)}₹ via ${vehicleType}`;
+    }
+
+    // Handle vehicle type change to recalculate
+    var vehicleTypeSelect = byId("vehicleType");
+    if (vehicleTypeSelect) {
+      vehicleTypeSelect.addEventListener("change", function () {
+        var pickupCity = pickupCitySelect ? pickupCitySelect.value : "";
+        var dropCity = dropCitySelect ? dropCitySelect.value : "";
+        if (pickupCity && dropCity && pickupCity !== dropCity) {
+          calculateRoute(pickupCity, dropCity);
+        }
+      });
+    }
   }
 
   function initAdminScreen() {

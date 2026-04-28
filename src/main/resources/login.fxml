@@ -16,6 +16,10 @@
            fx:controller="com.deliveryroute.ui.LoginController"
            styleClass="root">
 
+    <fx:define>
+        <ToggleGroup fx:id="roleToggleGroup"/>
+    </fx:define>
+
     <VBox spacing="14" maxWidth="400" prefWidth="400" styleClass="card">
         <padding>
             <Insets top="24" right="24" bottom="24" left="24"/>
@@ -25,9 +29,9 @@
         <Label text="Sign in to continue" style="-fx-text-fill: #66665F;"/>
 
         <HBox spacing="8">
-            <ToggleButton fx:id="customerRoleButton" text="Customer" styleClass="pill-toggle" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
-            <ToggleButton fx:id="adminRoleButton" text="Admin" styleClass="pill-toggle" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
-            <ToggleButton fx:id="deliveryRoleButton" text="Delivery" styleClass="pill-toggle" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+            <ToggleButton fx:id="customerRoleButton" text="Customer" styleClass="pill-toggle" maxWidth="Infinity" HBox.hgrow="ALWAYS" toggleGroup="$roleToggleGroup"/>
+            <ToggleButton fx:id="adminRoleButton" text="Admin" styleClass="pill-toggle" maxWidth="Infinity" HBox.hgrow="ALWAYS" toggleGroup="$roleToggleGroup"/>
+            <ToggleButton fx:id="deliveryRoleButton" text="Delivery" styleClass="pill-toggle" maxWidth="Infinity" HBox.hgrow="ALWAYS" toggleGroup="$roleToggleGroup"/>
         </HBox>
 
         <TextField fx:id="emailField" promptText="Email ID"/>
@@ -37,7 +41,5 @@
         <Label fx:id="errorLabel" text="Invalid credentials" visible="false" managed="false" style="-fx-text-fill: #B91C1C;"/>
 
         <Label text="Create account" onMouseClicked="#onCreateAccount" style="-fx-text-fill: #E5581E; -fx-cursor: hand; -fx-underline: true;"/>
-
-        <ToggleGroup fx:id="roleToggleGroup"/>
     </VBox>
 </StackPane>
