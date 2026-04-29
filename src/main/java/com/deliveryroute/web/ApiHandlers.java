@@ -131,15 +131,20 @@ public final class ApiHandlers {
             String vehicleType = safe(payload.get("vehicleType"));
             double weightKg = toDouble(payload.get("weightKg"), 0.0);
             String pickupSlot = safe(payload.get("pickupSlot"));
+            double totalCost = toDouble(payload.get("totalCost"), Double.NaN);
 
             if (customerEmail.isBlank() || pickupCity.isBlank() || dropCity.isBlank() || vehicleType.isBlank()) {
                 sendJson(exchange, 400, Map.of("success", false, "message", "Missing required fields"));
                 return;
             }
 
-
-            long orderId = getOrderRepo().createOrderViaApi(customerEmail, pickupCity, dropCity, vehicleType, weightKg, pickupSlot);
-                OrderRepository.OrderRecord order = getOrderRepo().getOrderById(orderId);
+            long orderId;
+            if (Double.isNaN(totalCost)) {
+                orderId = getOrderRepo().createOrderViaApi(customerEmail, pickupCity, dropCity, vehicleType, weightKg, pickupSlot);
+            } else {
+                orderId = getOrderRepo().createOrderViaApi(customerEmail, pickupCity, dropCity, vehicleType, weightKg, pickupSlot, totalCost);
+            }
+            OrderRepository.OrderRecord order = getOrderRepo().getOrderById(orderId);
             sendJson(exchange, 201, Map.of(
                     "success", true,
                     "message", "Order created successfully",
@@ -171,6 +176,25 @@ public final class ApiHandlers {
                         "success", success,
                         "message", success ? "Order status updated" : "Failed to update order status"
                 ));
+            } else if ("acceptOrder".equals(action)) {
+                String deliveryUsername = safe(payload.get("deliveryUsername"));
+                OrderRepository.OrderRecord accepted = getOrderRepo().acceptOrderForDelivery(orderId, deliveryUsername);
+                if (accepted == null) {
+                    sendJson(exchange, 400, Map.of("success", false, "message", "Order could not be accepted"));
+                    return;
+                }
+                sendJson(exchange, 200, Map.of(
+                        "success", true,
+                        "message", "Order accepted",
+                        "order", orderToMap(accepted)
+                ));
+            } else if ("releaseOrder".equals(action)) {
+                String deliveryUsername = safe(payload.get("deliveryUsername"));
+                boolean success = getOrderRepo().releaseAcceptedOrder(orderId, deliveryUsername);
+                sendJson(exchange, success ? 200 : 400, Map.of(
+                        "success", success,
+                        "message", success ? "Order released" : "Failed to release order"
+                ));
             } else if ("updateDetails".equals(action)) {
                 String pickupCity = safe(payload.get("pickupCity"));
                 String dropCity = safe(payload.get("dropCity"));
@@ -199,6 +223,8 @@ public final class ApiHandlers {
             } else {
                 sendJson(exchange, 400, Map.of("success", false, "message", "Unknown action"));
             }
+        } catch (IllegalArgumentException e) {
+            sendJson(exchange, 400, Map.of("success", false, "message", e.getMessage()));
         } catch (Exception e) {
             sendJson(exchange, 500, Map.of("success", false, "message", e.getMessage()));
         }
@@ -354,31 +380,33 @@ public final class ApiHandlers {
 
     // Helper methods
     private static Map<String, Object> orderToMap(OrderRepository.OrderRecord order) {
-        return Map.ofEntries(
-                Map.entry("id", order.getId()),
-                Map.entry("customerEmail", order.getCustomerUsername()),
-                Map.entry("sourceCity", order.getSourceCity()),
-                Map.entry("destinationCity", order.getDestinationCity()),
-                Map.entry("vehicleType", order.getVehicleType()),
-                Map.entry("totalCost", order.getTotalCost()),
-                Map.entry("status", order.getStatus()),
-                Map.entry("assignedRider", order.getAssignedDeliveryUsername()),
-                Map.entry("placedAt", order.getPlacedAt()),
-                Map.entry("estimatedMinutes", order.getEstimatedMinutes())
-        );
+        Map<String, Object> map = new java.util.LinkedHashMap<>();
+        map.put("id", order.getId());
+        map.put("customerEmail", order.getCustomerUsername());
+        map.put("sourceCity", order.getSourceCity());
+        map.put("destinationCity", order.getDestinationCity());
+        map.put("vehicleType", order.getVehicleType());
+        map.put("totalCost", order.getTotalCost());
+        map.put("status", order.getStatus());
+        map.put("assignedRider", order.getAssignedDeliveryUsername());
+        map.put("weightKg", order.getWeightKg());
+        map.put("pickupSlot", order.getPickupSlot());
+        map.put("placedAt", order.getPlacedAt());
+        map.put("estimatedMinutes", order.getEstimatedMinutes());
+        return map;
     }
 
     private static Map<String, Object> riderToMap(Rider rider) {
-        return Map.ofEntries(
-                Map.entry("id", rider.getId()),
-                Map.entry("name", rider.getName()),
-                Map.entry("phoneNumber", rider.getPhoneNumber()),
-                Map.entry("vehicleType", rider.getVehicleType()),
-                Map.entry("availability", rider.getAvailability()),
-                Map.entry("currentCity", rider.getCurrentCity()),
-                Map.entry("currentLat", rider.getCurrentLat()),
-                Map.entry("currentLng", rider.getCurrentLng())
-        );
+        Map<String, Object> map = new java.util.LinkedHashMap<>();
+        map.put("id", rider.getId());
+        map.put("name", rider.getName());
+        map.put("phoneNumber", rider.getPhoneNumber());
+        map.put("vehicleType", rider.getVehicleType());
+        map.put("availability", rider.getAvailability());
+        map.put("currentCity", rider.getCurrentCity());
+        map.put("currentLat", rider.getCurrentLat());
+        map.put("currentLng", rider.getCurrentLng());
+        return map;
     }
 
     @SuppressWarnings("unchecked")

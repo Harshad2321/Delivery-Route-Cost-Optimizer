@@ -152,7 +152,7 @@ public class JavaScriptBridge {
                 <div id="info-card">
                     <h3 id="route-title">Route</h3>
                     <div class="row"><span class="label">Distance</span><span class="value" id="distance-value">-</span></div>
-                    <div class="row"><span class="label">Fuel</span><span class="value" id="fuel-value">-</span></div>
+                    <div class="row"><span class="label">Duration</span><span class="value" id="fuel-value">-</span></div>
                     <div class="row"><span class="label">Toll</span><span class="value" id="toll-value">-</span></div>
                     <div class="row"><span class="label">Traffic</span><span class="value" id="traffic-value">-</span></div>
                     <div class="row total"><span>Total</span><span id="total-value">-</span></div>

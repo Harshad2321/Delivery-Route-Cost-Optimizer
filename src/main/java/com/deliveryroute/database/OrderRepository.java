@@ -133,7 +133,7 @@ public class OrderRepository {
             throw new RuntimeException("Database unavailable. Cannot accept order.");
         }
 
-        String pickSql = "SELECT id FROM delivery_orders WHERE status = 'PLACED' ORDER BY placed_at ASC LIMIT 1";
+        String pickSql = "SELECT * FROM delivery_orders WHERE status = 'PLACED' ORDER BY placed_at ASC";
 
         try (Connection conn = dbConnection.getConnection()) {
             conn.setAutoCommit(false);
@@ -141,8 +141,11 @@ public class OrderRepository {
                 Long orderId = null;
                 try (PreparedStatement pickStmt = conn.prepareStatement(pickSql);
                      ResultSet rs = pickStmt.executeQuery()) {
-                    if (rs.next()) {
-                        orderId = rs.getLong("id");
+                    while (rs.next()) {
+                        if (canCarryWeight(rs.getString("vehicle_type"), rs.getDouble("weight_kg"))) {
+                            orderId = rs.getLong("id");
+                            break;
+                        }
                     }
                 }
 
@@ -219,6 +222,11 @@ public class OrderRepository {
             return false;
         }
 
+        OrderRecord order = getOrderById(orderId);
+        if (order == null || !canCarryWeight(order.getVehicleType(), order.getWeightKg())) {
+            return false;
+        }
+
         String sql = """
                 UPDATE delivery_orders
                 SET assigned_delivery_username = ?,
@@ -236,6 +244,77 @@ public class OrderRepository {
         } catch (SQLException e) {
             System.err.println("Error assigning order: " + e.getMessage());
             return false;
+        }
+    }
+
+    public OrderRecord acceptOrderForDelivery(long orderId, String deliveryUsername) {
+        if (!dbConnection.isAvailable()) {
+            throw new RuntimeException("Database unavailable. Cannot accept order.");
+        }
+
+        if (hasActiveAcceptedOrder(deliveryUsername)) {
+            throw new IllegalStateException("You already have an accepted order. Remove it before accepting another one.");
+        }
+
+        OrderRecord order = getOrderById(orderId);
+        if (order == null) {
+            return null;
+        }
+        ensureVehicleCapacity(order.getVehicleType(), order.getWeightKg());
+        if (!"PLACED".equals(order.getStatus()) && !"CREATED".equals(order.getStatus())) {
+            throw new IllegalStateException("Only available orders can be accepted.");
+        }
+
+        String sql = """
+                UPDATE delivery_orders
+                SET assigned_delivery_username = ?,
+                    status = 'ACCEPTED',
+                    accepted_at = ?
+                WHERE id = ?
+                  AND status IN ('PLACED', 'CREATED')
+                """;
+
+        try (Connection conn = dbConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, deliveryUsername);
+            stmt.setTimestamp(2, Timestamp.valueOf(LocalDateTime.now()));
+            stmt.setLong(3, orderId);
+            if (stmt.executeUpdate() == 0) {
+                return null;
+            }
+            return getOrderById(orderId);
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to accept order: " + e.getMessage(), e);
+        }
+    }
+
+    public boolean releaseAcceptedOrder(long orderId, String deliveryUsername) {
+        if (!dbConnection.isAvailable()) {
+            return false;
+        }
+
+        String sql = """
+                UPDATE delivery_orders
+                SET status = 'PLACED',
+                    assigned_delivery_username = NULL,
+                    assigned_rider_id = NULL,
+                    accepted_at = NULL,
+                    picked_at = NULL,
+                    in_transit_at = NULL,
+                    delivered_at = NULL,
+                    actual_delivery = NULL
+                WHERE id = ?
+                  AND status = 'ACCEPTED'
+                  AND assigned_delivery_username = ?
+                """;
+
+        try (Connection conn = dbConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, orderId);
+            stmt.setString(2, deliveryUsername);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to release accepted order: " + e.getMessage(), e);
         }
     }
 
@@ -270,29 +349,35 @@ public class OrderRepository {
      */
     public long createOrderViaApi(String customerEmail, String pickupCity, String dropCity, 
                                    String vehicleType, double weightKg, String pickupSlot) {
+        double totalCost = estimateCost(vehicleType, 50.0); // default 50km
+        return createOrderViaApi(customerEmail, pickupCity, dropCity, vehicleType, weightKg, pickupSlot, totalCost);
+    }
+
+    public long createOrderViaApi(String customerEmail, String pickupCity, String dropCity,
+                                   String vehicleType, double weightKg, String pickupSlot, double totalCost) {
         if (!dbConnection.isAvailable()) {
             throw new RuntimeException("Database unavailable. Cannot create order.");
         }
 
-        // Default cost calculation for now
-        double totalCost = estimateCost(vehicleType, 50.0); // default 50km
+        ensureVehicleCapacity(vehicleType, weightKg);
 
         String sql = """
                 INSERT INTO delivery_orders (
-                    customer_email, source_city, destination_city, vehicle_type,
+                    customer_email, customer_username, source_city, destination_city, vehicle_type,
                     cost_strategy, total_cost, status, weight_kg, pickup_slot
-                ) VALUES (?, ?, ?, ?, 'STANDARD', ?, 'CREATED', ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, 'STANDARD', ?, 'CREATED', ?, ?)
                 """;
 
         try (Connection conn = dbConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setString(1, customerEmail);
-            stmt.setString(2, pickupCity);
-            stmt.setString(3, dropCity);
-            stmt.setString(4, vehicleType);
-            stmt.setDouble(5, totalCost);
-            stmt.setDouble(6, weightKg);
-            stmt.setString(7, pickupSlot);
+            stmt.setString(2, customerEmail);
+            stmt.setString(3, pickupCity);
+            stmt.setString(4, dropCity);
+            stmt.setString(5, vehicleType);
+            stmt.setDouble(6, totalCost);
+            stmt.setDouble(7, weightKg);
+            stmt.setString(8, pickupSlot);
             stmt.executeUpdate();
 
             try (ResultSet rs = stmt.getGeneratedKeys()) {
@@ -315,6 +400,8 @@ public class OrderRepository {
         if (!dbConnection.isAvailable()) {
             return false;
         }
+
+        ensureVehicleCapacity(vehicleType, weightKg);
 
         String sql = """
                 UPDATE delivery_orders
@@ -399,6 +486,32 @@ public class OrderRepository {
             default -> 2.5;
         };
         return distanceKm * pricePerKm;
+    }
+
+    private void ensureVehicleCapacity(String vehicleType, double weightKg) {
+        if (weightKg < 0) {
+            throw new IllegalArgumentException("Weight must be greater than or equal to 0.");
+        }
+        if (!canCarryWeight(vehicleType, weightKg)) {
+            throw new IllegalArgumentException(vehicleType + " can carry up to " + (int) getVehicleCapacityKg(vehicleType) + " kg.");
+        }
+    }
+
+    private boolean canCarryWeight(String vehicleType, double weightKg) {
+        return weightKg <= getVehicleCapacityKg(vehicleType);
+    }
+
+    private double getVehicleCapacityKg(String vehicleType) {
+        if (vehicleType == null) {
+            return 0.0;
+        }
+
+        return switch (vehicleType.trim().toLowerCase()) {
+            case "bike" -> 10.0;
+            case "van" -> 100.0;
+            case "truck" -> 1000.0;
+            default -> 0.0;
+        };
     }
 
     public boolean deleteOrderByAdmin(long orderId) {
@@ -622,6 +735,8 @@ public class OrderRepository {
                 rs.getDouble("total_cost"),
                 rs.getString("status"),
                 rs.getString("assigned_delivery_username"),
+                rs.getDouble("weight_kg"),
+                rs.getString("pickup_slot"),
                 rs.getString("placed_at"),
                 rs.getString("accepted_at"),
                 rs.getString("delivered_at"),
@@ -643,6 +758,8 @@ public class OrderRepository {
         private final double totalCost;
         private final String status;
         private final String assignedDeliveryUsername;
+        private final double weightKg;
+        private final String pickupSlot;
         private final String placedAt;
         private final String acceptedAt;
         private final String deliveredAt;
@@ -658,6 +775,8 @@ public class OrderRepository {
                            double totalCost,
                            String status,
                            String assignedDeliveryUsername,
+                           double weightKg,
+                           String pickupSlot,
                            String placedAt,
                            String acceptedAt,
                            String deliveredAt,
@@ -672,6 +791,8 @@ public class OrderRepository {
             this.totalCost = totalCost;
             this.status = status;
             this.assignedDeliveryUsername = assignedDeliveryUsername;
+            this.weightKg = weightKg;
+            this.pickupSlot = pickupSlot;
             this.placedAt = placedAt;
             this.acceptedAt = acceptedAt;
             this.deliveredAt = deliveredAt;
@@ -713,6 +834,14 @@ public class OrderRepository {
 
         public String getAssignedDeliveryUsername() {
             return assignedDeliveryUsername;
+        }
+
+        public double getWeightKg() {
+            return weightKg;
+        }
+
+        public String getPickupSlot() {
+            return pickupSlot;
         }
 
         public String getPlacedAt() {

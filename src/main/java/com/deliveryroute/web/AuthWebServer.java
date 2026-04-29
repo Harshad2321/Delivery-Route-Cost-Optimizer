@@ -43,16 +43,28 @@ public final class AuthWebServer {
             server.createContext("/api/orders", exchange -> {
                 try {
                     ApiHandlers.handleOrderApi(exchange);
-                } catch (IOException e) {
+                } catch (Exception e) {
+                    System.err.println("[ERROR] /api/orders: " + e.getMessage());
                     e.printStackTrace();
+                    try {
+                        sendJson(exchange, 500, Map.of("success", false, "message", "Internal server error: " + e.getMessage()));
+                    } catch (IOException ioe) {
+                        ioe.printStackTrace();
+                    }
                 }
             });
             
             server.createContext("/api/riders", exchange -> {
                 try {
                     ApiHandlers.handleRiderApi(exchange);
-                } catch (IOException e) {
+                } catch (Exception e) {
+                    System.err.println("[ERROR] /api/riders: " + e.getMessage());
                     e.printStackTrace();
+                    try {
+                        sendJson(exchange, 500, Map.of("success", false, "message", "Internal server error: " + e.getMessage()));
+                    } catch (IOException ioe) {
+                        ioe.printStackTrace();
+                    }
                 }
             });
             

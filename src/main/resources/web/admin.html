@@ -48,6 +48,7 @@
           <button id="ordersAcceptedTab" class="btn btn-blue" type="button">Orders Accepted</button>
           <button id="ordersOnWayTab" class="btn btn-orange" type="button">Order On The Way</button>
           <button id="ordersDeliveredTab" class="btn btn-green" type="button">Order Delivered</button>
+          <button id="ordersClearSortBtn" class="btn btn-default" type="button">Clear</button>
         </div>
 
         <div class="table-wrap" aria-label="Orders Table Wrapper">
@@ -94,11 +95,31 @@
             <input id="adminPickupSlot" type="text" placeholder="Slot (10:00 - 12:00)" />
           </div>
           <div class="row" style="margin-top: 8px;">
-            <button id="adminCreateOrderBtn" class="btn btn-green" type="button">Create</button>
-            <button id="adminUpdateOrderBtn" class="btn btn-blue" type="button">Update</button>
-            <button id="adminDeleteOrderBtn" class="btn btn-orange" type="button">Delete</button>
+              <button id="adminCreateOrderBtn" class="btn btn-green" type="button">Create</button>
+              <button id="adminUpdateOrderBtn" class="btn btn-blue" type="button">Update</button>
+            </div>
           </div>
-        </div>
+
+          <div style="margin-top: 20px;">
+            <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600; color: #0f172a;">Recent Orders</h3>
+            <div class="table-wrap" aria-label="Recent Orders Table Wrapper">
+              <table id="crudOrdersTable" aria-label="Recent Orders Table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Customer Email</th>
+                    <th>Route</th>
+                    <th>Vehicle</th>
+                    <th>Status</th>
+                    <th>Weight (kg)</th>
+                    <th>Slot</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
       </section>
 
       <section id="usersPane" class="panel hidden">

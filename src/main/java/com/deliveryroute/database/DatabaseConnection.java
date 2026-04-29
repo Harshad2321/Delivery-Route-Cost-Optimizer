@@ -51,11 +51,9 @@ public class DatabaseConnection {
     }
 
     public Connection getConnection() throws SQLException {
-        if (connection == null || connection.isClosed()) {
-            connection = DriverManager.getConnection(url, username, password);
-            available = true;
-        }
-        return connection;
+        // Always return a fresh connection for thread safety and proper resource management
+        // This avoids ResultSet closed errors from concurrent access
+        return DriverManager.getConnection(url, username, password);
     }
 
     public boolean isAvailable() {
